@@ -1,0 +1,89 @@
+# API Endpoints wordlist
+# Dùng cho: webfuzzer -u https://api.example.com/FUZZ -w wordlists/api-endpoints.txt
+
+# Auth
+auth
+auth/login
+auth/logout
+auth/register
+auth/token
+auth/refresh
+auth/forgot-password
+auth/reset-password
+auth/verify
+oauth/token
+oauth/authorize
+
+# Users
+users
+users/me
+users/profile
+users/list
+users/search
+user
+user/me
+user/profile
+account
+accounts
+profile
+profiles
+
+# Admin
+admin
+admin/users
+admin/roles
+admin/settings
+admin/logs
+admin/dashboard
+admin/stats
+
+# Resources (RESTful)
+items
+items/{id}
+products
+products/list
+orders
+orders/history
+categories
+tags
+comments
+posts
+articles
+events
+notifications
+messages
+files
+uploads
+
+# Common API paths
+v1
+v2
+v3
+api
+api/v1
+api/v2
+api/v3
+api/v1/users
+api/v1/auth
+api/v1/products
+api/v2/users
+api/v2/auth
+
+# Documentation / Metadata
+docs
+swagger
+swagger-ui
+swagger.json
+openapi
+openapi.json
+redoc
+graphql
+schema
+health
+health/live
+health/ready
+ping
+status
+info
+version
+metrics
