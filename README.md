@@ -60,10 +60,14 @@ dotnet restore
 dotnet build
 
 # Chạy trực tiếp
-dotnet run --project src/WebFuzzer.CLI -- -u https://example.com/FUZZ -w wordlists/common.txt
+dotnet run --project src/WebFuzzer.CLI -- -u https://example.com/FUZZ -w wordlists/common.txt (http://ffuf.me/)
 
 # Publish thành binary đơn
 dotnet publish src/WebFuzzer.CLI -c Release -r win-x64 --self-contained
+
+#RUN WPF
+dotnet run --project src/WebFuzzer.UI
+dotnet watch run --project src/WebFuzzer.UI/WebFuzzer.UI.csproj
 ```
 
 ---
@@ -94,6 +98,13 @@ OPTIONS:
        --delay <ms>            Delay giữa request (ms)
   -x,  --proxy <url>           Proxy URL
   -v,  --verbose               Hiện cả kết quả bị filter
+  -fs 416                      Filter size = 416 bytes
+  -fw 31                       Filter word count = 31
+  -fl 16                       Filter line count = 16
+  -ms 809                      Chỉ giữ size = 809
+  -mw 76                       Chỉ giữ word count = 76
+  -ml 13                       Chỉ giữ line count = 13
+  -fr "Cannot GET"             Filter regex trong body
 ```
 
 ---

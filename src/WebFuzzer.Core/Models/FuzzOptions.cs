@@ -42,4 +42,7 @@ public class FuzzOptions
     public bool Silent { get; set; }
     public bool Verbose { get; set; }
     public bool NoColor { get; set; }
+
+    // AutoCalibrate 
+    public bool AutoCalibrate { get; set; } = false;
 }

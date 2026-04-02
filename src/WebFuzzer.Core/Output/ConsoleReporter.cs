@@ -18,6 +18,7 @@ public class ConsoleReporter : IFuzzReporter
     private const string Red    = "\x1b[31m";
     private const string Cyan   = "\x1b[36m";
     private const string Gray   = "\x1b[90m";
+    private const string Magenta = "\x1b[35m";
 
     public ConsoleReporter(FuzzOptions options) => _options = options;
 
@@ -38,6 +39,21 @@ public class ConsoleReporter : IFuzzReporter
     public void PrintBanner(FuzzOptions options)
     {
         if (options.Silent) return;
+
+        // Build các dòng filter/match tùy theo options được set
+        var sb = new StringBuilder();
+        sb.AppendLine($"{Bold}:: Target       :{Reset} {options.Url}");
+        sb.AppendLine($"{Bold}:: Wordlist     :{Reset} {options.Wordlist}");
+        sb.AppendLine($"{Bold}:: Threads      :{Reset} {options.Threads}");
+        sb.AppendLine($"{Bold}:: Method       :{Reset} {options.Method}");
+        sb.AppendLine($"{Bold}:: Match codes  :{Reset} {string.Join(",", options.MatchCodes ?? new[] { "200" })}");
+
+        // ✅ Hiển thị regex nếu có
+        if (!string.IsNullOrEmpty(options.MatchRegex))
+            sb.AppendLine($"{Bold}:: Match regex  :{Reset} {Magenta}{options.MatchRegex}{Reset}");
+        if (!string.IsNullOrEmpty(options.FilterRegex))
+            sb.AppendLine($"{Bold}:: Filter regex :{Reset} {Magenta}{options.FilterRegex}{Reset}");
+
         Console.WriteLine($"""
             {Bold}{Cyan}
             ██╗    ██╗███████╗██████╗ ███████╗██╗   ██╗███████╗███████╗
@@ -48,11 +64,7 @@ public class ConsoleReporter : IFuzzReporter
              ╚══╝╚══╝ ╚══════╝╚═════╝ ╚═╝      ╚═════╝    ╚═╝     ╚═╝  
             {Reset}WebFuzzer v1.0.0 — .NET 8 — by you
             ________________________________________________
-            {Bold}:: Target       :{Reset} {options.Url}
-            {Bold}:: Wordlist     :{Reset} {options.Wordlist}
-            {Bold}:: Threads      :{Reset} {options.Threads}
-            {Bold}:: Method       :{Reset} {options.Method}
-            {Bold}:: Match codes  :{Reset} {string.Join(",", options.MatchCodes ?? ["200"])}
+            {sb.ToString().TrimEnd()}
             ________________________________________________
             """);
     }
@@ -62,18 +74,19 @@ public class ConsoleReporter : IFuzzReporter
         lock (_lock)
         {
             _results.Add(result);
-            
+
             var color = result.StatusCode switch
             {
-                200 => Green,
+                200       => Green,
+                201       => Green,
                 301 or 302 or 307 => Yellow,
-                403 => Red,
-                _ => Cyan
+                403       => Red,
+                _         => Cyan
             };
 
-            // Clear progress line trước khi in result
+            // Xóa progress line trước khi in result
             Console.Write("\r" + new string(' ', Console.WindowWidth - 1) + "\r");
-            
+
             Console.WriteLine(
                 $"{color}[Status: {result.StatusCode,-3}]{Reset} " +
                 $"{Bold}{result.Word,-40}{Reset} " +
@@ -83,6 +96,15 @@ public class ConsoleReporter : IFuzzReporter
                 $"{Gray}[{result.DurationMs}ms]{Reset} " +
                 $":: {Cyan}{result.Url}{Reset}"
             );
+
+            // ✅ Verbose: in đoạn body liên quan đến regex match
+            if (_options.Verbose && !string.IsNullOrEmpty(result.ResponseBody))
+            {
+                var preview = result.ResponseBody.Length > 300
+                    ? result.ResponseBody[..300] + "..."
+                    : result.ResponseBody;
+                Console.WriteLine($"{Gray}    ↳ {preview}{Reset}");
+            }
         }
     }
 
@@ -102,21 +124,23 @@ public class ConsoleReporter : IFuzzReporter
     public void PrintSummary(long total, long matches, TimeSpan duration)
     {
         if (_options.Silent) return;
+        var durationStr = duration.ToString(@"mm\:ss\.fff");
+        var reqPerSec   = duration.TotalSeconds > 0 ? (int)(total / duration.TotalSeconds) : 0;
+
         Console.WriteLine($"""
 
             ________________________________________________
             {Bold}:: Results{Reset}
             {Bold}:: Total requests  :{Reset} {total}
             {Bold}:: Matches found   :{Reset} {Green}{matches}{Reset}
-            {Bold}:: Duration        :{Reset} {duration:mm\\:ss\\.fff}
-            {Bold}:: Req/sec         :{Reset} {(int)(total / duration.TotalSeconds)}
+            {Bold}:: Duration        :{Reset} {durationStr}
+            {Bold}:: Req/sec         :{Reset} {reqPerSec}
             ________________________________________________
             """);
     }
 
     public async Task SaveAsync(string path)
     {
-        // Được override bởi JsonReporter / CsvReporter
         await Task.CompletedTask;
     }
 }
