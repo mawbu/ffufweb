@@ -1,3 +1,5 @@
+using WebFuzzer.Core.Detection;
+
 namespace WebFuzzer.Core.Models;
 
 public class FuzzOptions
@@ -39,10 +41,11 @@ public class FuzzOptions
     // Output
     public string? OutputFile { get; set; }
     public string OutputFormat { get; set; } = "json";
-    public bool Silent { get; set; }
-    public bool Verbose { get; set; }
-    public bool NoColor { get; set; }
-
-    // AutoCalibrate 
     public bool AutoCalibrate { get; set; } = false;
+    public bool EnableDetection { get; set; } = true;
+    public bool EnableConfirmation { get; set; } = true; // High Precision V3
+    public Severity DetectionBypassThreshold { get; set; } = Severity.Suspicious;
+    public bool Verbose { get; set; } = false;
+    public bool Silent { get; set; }
+    public bool NoColor { get; set; }
 }

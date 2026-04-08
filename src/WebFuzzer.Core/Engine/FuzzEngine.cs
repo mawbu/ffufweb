@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using WebFuzzer.Core.Detection;
 using WebFuzzer.Core.Filters;
 using WebFuzzer.Core.Http;
 using WebFuzzer.Core.Models;
@@ -11,14 +12,24 @@ public partial class FuzzEngine
     private readonly FuzzOptions _options;
     private readonly ResponseFilter _filter;
     private readonly ConsoleReporter _reporter;
+    private readonly VulnerabilityDetector? _detector;
+    private readonly VulnerabilityConfirmer? _confirmer;
     private long _requestCount = 0;
     private long _matchCount   = 0;
+    private long _bypassCount  = 0; 
+    private long _confirmedCount = 0; 
 
     public FuzzEngine(FuzzOptions options)
     {
         _options  = options;
         _filter   = new ResponseFilter(options);
         _reporter = new ConsoleReporter(options);
+        
+        if (options.EnableDetection)
+        {
+            _detector = new VulnerabilityDetector();
+            _confirmer = new VulnerabilityConfirmer(_detector);
+        }
     }
 
     public async Task RunAsync()
@@ -72,6 +83,9 @@ public partial class FuzzEngine
         await Task.WhenAll(workers.Append(producer));
         _reporter.PrintSummary(_requestCount, _matchCount, DateTime.UtcNow - startTime);
 
+        if (_bypassCount > 0 && !_options.Silent)
+            Console.WriteLine($":: [Detection] {_bypassCount} result(s) bypass filter due to detection score.");
+
         if (_options.OutputFile != null)
             await _reporter.SaveAsync(_options.OutputFile);
     }
@@ -84,6 +98,7 @@ public partial class FuzzEngine
         var probeSizes      = new List<int>();
         var probeWordCounts = new List<int>();
         var probeLines      = new List<int>();
+        var probeResponses  = new List<FuzzResult>(); // 2xx probes để thiết lập baseline detector
 
         foreach (var _ in Enumerable.Range(0, 3))
         {
@@ -96,6 +111,23 @@ public partial class FuzzEngine
                 probeSizes.Add(body.Length);
                 probeWordCounts.Add(CountWords(body));
                 probeLines.Add(CountLines(body));
+
+                // Guard: chỉ dùng 2xx cho baseline detector — 500 sẽ skew timing/size
+                int statusCode = (int)response.StatusCode;
+                if (statusCode >= 200 && statusCode < 300)
+                {
+                    probeResponses.Add(new FuzzResult
+                    {
+                        Word          = probe,
+                        StatusCode    = statusCode,
+                        ContentLength = body.Length,
+                        WordCount     = CountWords(body),
+                        LineCount     = CountLines(body),
+                        DurationMs    = 0,
+                        ResponseBody  = body,
+                        Timestamp     = DateTime.UtcNow
+                    });
+                }
             }
             catch { }
         }
@@ -103,8 +135,17 @@ public partial class FuzzEngine
         if (probeSizes.Count == 0)
         {
             if (!_options.Silent)
-                Console.WriteLine(":: Auto-calibration failed. Continuing without it.");
+                Console.WriteLine(":: [Calibration] Failed: No responses received. Check your connection.");
             return;
+        }
+
+        // Cảnh báo nếu không có 2xx mẫu nào (thường do lỗi Auth)
+        if (probeResponses.Count == 0 && !_options.Silent)
+        {
+            var firstStatus = probeSizes.Count > 0 ? "Non-2xx" : "N/A";
+            Console.WriteLine($":: [Detection] ⚠ Baseline FAILED: No 2xx response from probes.");
+            Console.WriteLine($":: [Detection] ⚠ This usually means your Token is expired or the Header is malformed.");
+            Console.WriteLine($":: [Detection] ⚠ Detection engine will be DISABLED for this run.");
         }
 
         // ✅ Khi có MatchRegex: bỏ qua filter size/words/lines từ calibration
@@ -148,6 +189,14 @@ public partial class FuzzEngine
 
         if (!_options.Silent)
             Console.WriteLine("________________________________________________");
+
+        // Setup baseline cho detector (chỉ dùng 2xx probes — 5xx sẽ skew baseline)
+        if (_detector != null && probeResponses.Count > 0)
+        {
+            _detector.SetBaseline(probeResponses);
+            if (!_options.Silent)
+                Console.WriteLine($":: [Detection] Baseline ready from {probeResponses.Count} 2xx probe(s).");
+        }
     }
 
     private async Task ProcessWorker(
@@ -165,31 +214,90 @@ public partial class FuzzEngine
                 using var response = await httpClient.SendAsync(request, ct);
                 stopwatch.Stop();
 
-                // Luôn đọc body — cần cho ContentLength, WordCount, LineCount
+                // Đọc body: cần cho ContentLength, WordCount, LineCount.
+                // Khi detection bật, cần body để chạy regex pattern — đọc luôn.
                 var body = await response.Content.ReadAsStringAsync(ct);
 
-                // Lưu body vào result chỉ khi cần cho regex hoặc verbose
-                var needsBody = !string.IsNullOrEmpty(_options.MatchRegex)
+                var needsBody = _options.EnableDetection        // ← detection cần body trước khi quyết định bypass
+                             || !string.IsNullOrEmpty(_options.MatchRegex)
                              || !string.IsNullOrEmpty(_options.FilterRegex)
                              || _options.Verbose;
 
                 var result = new FuzzResult
                 {
                     Word          = word,
+                    Payload       = word,
                     Url           = request.RequestUri!.ToString(),
                     StatusCode    = (int)response.StatusCode,
                     ContentLength = body.Length,
                     WordCount     = CountWords(body),
                     LineCount     = CountLines(body),
                     DurationMs    = stopwatch.ElapsedMilliseconds,
-                    ResponseBody  = needsBody ? body : null
+                    ResponseBody  = needsBody ? body : null,
+                    Timestamp     = DateTime.UtcNow
                 };
 
                 Interlocked.Increment(ref _requestCount);
 
-                if (_filter.IsMatch(result))
+                // ── YÊU CẦU 1: Kiểm tra Strict Filter ─────────────────────────────
+                var filterEval = _filter.Evaluate(result);
+                if (filterEval.IsBlockedByStrictRule)
                 {
+                    // Report progress if silent is off
+                    if (!_options.Silent) _reporter.UpdateProgress(_requestCount, word);
+                    continue;
+                }
+
+                // ── YÊU CẦU 2: Chạy Detection (chỉ chạy nếu không bị strict block) ─────
+                bool isHighSeverity = false;
+                if (_options.EnableDetection && _detector?.IsReady == true)
+                {
+                    if (result.ResponseBody == null) result.ResponseBody = body;
+                    
+                    // Kiểm tra xem request có chứa Authorization hoặc Cookie không để làm ngữ cảnh cho IDOR
+                    bool hasAuth = (_options.Headers != null && _options.Headers.Any(h => h.Trim().StartsWith("Authorization", StringComparison.OrdinalIgnoreCase))) ||
+                                  !string.IsNullOrEmpty(_options.Cookie);
+
+                    var detection = _detector.Analyze(result, word, hasAuth);
+                    
+                    result.DetectionScore = detection.ConfidenceScore;
+                    result.DetectedVulnType = detection.PrimaryVulnType.ToString();
+                    result.DetectionSummary = detection.Summary;
+
+                    isHighSeverity = detection.Severity >= _options.DetectionBypassThreshold;
+                }
+
+                // ── YÊU CẦU 3: Quyết định Report ────────────────────────────────
+                bool retainedByDetection = false;
+                if (!filterEval.IsPassedBySoftRule && isHighSeverity)
+                {
+                    retainedByDetection = true;
+                    result.IsRetainedByDetection = true;
+                }
+
+                if (filterEval.IsPassedBySoftRule || retainedByDetection)
+                {
+                    // ── [NEW] YÊU CẦU 4: Auto-Retest Confirmation ────────────────
+                    if (_confirmer != null && result.DetectionScore >= 40)
+                    {
+                        var confirmation = await _confirmer.VerifyAsync(result, _options, httpClient);
+                        result.ConfirmationSummary = confirmation.Reason;
+                        
+                        if (confirmation.IsConfirmed)
+                        {
+                            Interlocked.Increment(ref _confirmedCount);
+                            // Highlight confirmed result
+                            result.DetectionSummary = "✅ [VERIFIED] " + result.DetectionSummary;
+                        }
+                        else
+                        {
+                            // Nếu không xác thực được, hạ mức độ tin cậy
+                            result.DetectionSummary = "⚠️ [UNVERIFIED] " + result.DetectionSummary;
+                        }
+                    }
+
                     Interlocked.Increment(ref _matchCount);
+                    if (retainedByDetection) Interlocked.Increment(ref _bypassCount);
                     _reporter.PrintResult(result);
                 }
                 else if (!_options.Silent)

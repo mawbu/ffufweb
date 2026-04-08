@@ -3,6 +3,7 @@
 // FuzzEngine nhận thêm callbacks để update UI realtime
 
 using System.Threading.Channels;
+using WebFuzzer.Core.Detection;
 using WebFuzzer.Core.Filters;
 using WebFuzzer.Core.Http;
 using WebFuzzer.Core.Models;
@@ -19,14 +20,19 @@ public partial class FuzzEngine
     private readonly Action<long, string>? _onProgress;
     private readonly Action<string>? _onTerminalLine;
 
+    // Detection — được inject từ UI; nếu null = detection tắt
+    private readonly VulnerabilityDetector? _uiDetector;
+    private readonly Severity _uiBypassThreshold;
+
     /// <summary>
-    /// Constructor cho WPF UI — nhận callbacks thay vì ConsoleReporter
+    /// Constructor cho WPF UI — nhận callbacks + optional detector
     /// </summary>
     public FuzzEngine(
         FuzzOptions options,
         Action<FuzzResult> onResult,
         Action<long, string> onProgress,
-        Action<string> onTerminalLine)
+        Action<string> onTerminalLine,
+        VulnerabilityDetector? detector = null)
     {
         _options        = options;
         _filter         = new ResponseFilter(options);
@@ -34,6 +40,8 @@ public partial class FuzzEngine
         _onResult       = onResult;
         _onProgress     = onProgress;
         _onTerminalLine = onTerminalLine;
+        _uiDetector     = detector;
+        _uiBypassThreshold = options.DetectionBypassThreshold;
     }
 
     /// <summary>
@@ -77,6 +85,8 @@ public partial class FuzzEngine
         var duration = DateTime.UtcNow - startTime;
         _onTerminalLine?.Invoke($"[WebFuzzer] Completed: {_requestCount} requests in {duration:mm\\:ss\\.fff}");
         _onTerminalLine?.Invoke($"[WebFuzzer] Matches: {_matchCount}");
+        if (_bypassCount > 0)
+            _onTerminalLine?.Invoke($"[Detection] {_bypassCount} bypass (filter would have dropped these)");
     }
 
     private async Task ProcessWorkerUI(
@@ -96,31 +106,70 @@ public partial class FuzzEngine
 
                 var body = await response.Content.ReadAsStringAsync(ct);
 
-                var needsBody = !string.IsNullOrEmpty(_options.MatchRegex)
+                // needsBody: thêm EnableDetection — detector cần body trước khi quyết định bypass
+                var needsBody = _options.EnableDetection
+                             || !string.IsNullOrEmpty(_options.MatchRegex)
                              || !string.IsNullOrEmpty(_options.FilterRegex)
                              || _options.Verbose;
 
                 var result = new FuzzResult
                 {
                     Word          = word,
+                    Payload       = word,
                     Url           = request.RequestUri!.ToString(),
                     StatusCode    = (int)response.StatusCode,
                     ContentLength = body.Length,
                     WordCount     = CountWords(body),
                     LineCount     = CountLines(body),
                     DurationMs    = stopwatch.ElapsedMilliseconds,
-                    ResponseBody  = needsBody ? body : null
+                    ResponseBody  = needsBody ? body : null,
+                    Timestamp     = DateTime.UtcNow
                 };
 
                 Interlocked.Increment(ref _requestCount);
                 _onProgress?.Invoke(_requestCount, word);
 
-                if (_filter.IsMatch(result))
+                // Debug mode (Verbose): hiển thị TẤT CẢ response
+                if (_options.Verbose)
+                {
+                    var preview = body.Length > 80 ? body[..80].Replace('\n', ' ') + "…" : body.Replace('\n', ' ');
+                    _onTerminalLine?.Invoke(
+                        $"[{(int)response.StatusCode}] {word,-25} Size:{body.Length,-8} → {preview}");
+                }
+
+                // ── YÊU CẦU 1: Kiểm tra Strict Filter ─────────────────────────────
+                var filterEval = _filter.Evaluate(result);
+                if (filterEval.IsBlockedByStrictRule) continue; 
+
+                // ── YÊU CẦU 2: Chạy Detection (chỉ chạy nếu không bị strict block) ─────
+                bool isHighSeverity = false;
+                if (_options.EnableDetection && _uiDetector?.IsReady == true)
+                {
+                    if (result.ResponseBody == null) result.ResponseBody = body;
+                    var detection = _uiDetector.Analyze(result, word);
+
+                    result.DetectionScore = detection.ConfidenceScore;
+                    result.DetectedVulnType = detection.PrimaryVulnType.ToString();
+                    result.DetectionSummary = detection.Summary;
+
+                    isHighSeverity = detection.Severity >= _uiBypassThreshold;
+                }
+
+                // ── YÊU CẦU 3: Quyết định Report ────────────────────────────────
+                bool retainedByDetection = false;
+                if (!filterEval.IsPassedBySoftRule && isHighSeverity)
+                {
+                    retainedByDetection = true;
+                    result.IsRetainedByDetection = true;
+                }
+
+                if (filterEval.IsPassedBySoftRule || retainedByDetection)
                 {
                     Interlocked.Increment(ref _matchCount);
+                    if (retainedByDetection) Interlocked.Increment(ref _bypassCount);
                     _onResult?.Invoke(result);        // → UI DataGrid
                     _onTerminalLine?.Invoke(
-                        $"[{result.StatusCode}] {result.Word,-40} Size:{result.ContentLength,-8} Words:{result.WordCount,-6} {result.Url}");
+                        $"{(retainedByDetection ? "🔥 VULN " : "✅ MATCH ")} [{result.StatusCode}] {result.Word,-40} Size:{result.ContentLength,-8} Words:{result.WordCount,-6} {result.Url}");
                 }
             }
             catch (OperationCanceledException) { break; }
@@ -137,6 +186,7 @@ public partial class FuzzEngine
         var probeSizes      = new List<int>();
         var probeWordCounts = new List<int>();
         var probeLines      = new List<int>();
+        var probeResponses  = new List<FuzzResult>(); // chỉ 2xx probes cho baseline
 
         foreach (var _ in Enumerable.Range(0, 3))
         {
@@ -149,6 +199,19 @@ public partial class FuzzEngine
                 probeSizes.Add(body.Length);
                 probeWordCounts.Add(CountWords(body));
                 probeLines.Add(CountLines(body));
+
+                // Guard: chỉ dùng 2xx cho baseline — 500 sẽ skew timing/size
+                int statusCode = (int)response.StatusCode;
+                if (statusCode >= 200 && statusCode < 300)
+                {
+                    probeResponses.Add(new FuzzResult
+                    {
+                        Word = probe, StatusCode = statusCode,
+                        ContentLength = body.Length, WordCount = CountWords(body),
+                        LineCount = CountLines(body), DurationMs = 0,
+                        ResponseBody = body, Timestamp = DateTime.UtcNow
+                    });
+                }
             }
             catch { }
         }
@@ -172,6 +235,13 @@ public partial class FuzzEngine
             _options.FilterLines ??= new HashSet<int>();
             _options.FilterLines.Add(probeLines[0]);
             _onTerminalLine?.Invoke($"[Calibration] Auto-filtering Lines: {probeLines[0]}");
+        }
+
+        // Setup baseline cho detector (chỉ dùng 2xx — 5xx sẽ skew baseline)
+        if (_uiDetector != null && probeResponses.Count > 0)
+        {
+            _uiDetector.SetBaseline(probeResponses);
+            _onTerminalLine?.Invoke($"[Detection] AutoCal baseline ready from {probeResponses.Count} 2xx probe(s).");
         }
     }
 }

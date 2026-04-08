@@ -75,20 +75,25 @@ public class ConsoleReporter : IFuzzReporter
         {
             _results.Add(result);
 
-            var color = result.StatusCode switch
+            var statusColor = result.StatusCode switch
             {
                 200       => Green,
                 201       => Green,
                 301 or 302 or 307 => Yellow,
-                403       => Red,
+                403 or 500 => Red,
                 _         => Cyan
             };
 
             // Xóa progress line trước khi in result
-            Console.Write("\r" + new string(' ', Console.WindowWidth - 1) + "\r");
+            if (!Console.IsOutputRedirected)
+                Console.Write("\r" + new string(' ', Console.WindowWidth - 1) + "\r");
 
+            // Hiển thị badge nếu là lỗi cao (quá threshold Likely=40)
+            bool isVulnerable = result.DetectionScore >= 40 || result.IsRetainedByDetection;
+            string badge = isVulnerable ? $"{Bold}{Red}[🔥 VULN] [Score: {result.DetectionScore}]{Reset} " : "";
+            
             Console.WriteLine(
-                $"{color}[Status: {result.StatusCode,-3}]{Reset} " +
+                $"{badge}{statusColor}[Status: {result.StatusCode,-3}]{Reset} " +
                 $"{Bold}{result.Word,-40}{Reset} " +
                 $"{Gray}[Size: {result.ContentLength,-8}]{Reset} " +
                 $"{Gray}[Words: {result.WordCount,-6}]{Reset} " +

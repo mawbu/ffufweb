@@ -145,3 +145,6 @@ dotnet test src/WebFuzzer.Tests
 ## License
 
 MIT
+
+///////
+200 OK, 301/302 Redirect, 401/403 Unauthorized/Forbidden

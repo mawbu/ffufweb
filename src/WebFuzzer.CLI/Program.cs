@@ -1,4 +1,5 @@
 using System.CommandLine;
+using WebFuzzer.Core.Detection;
 using WebFuzzer.Core.Engine;
 using WebFuzzer.Core.Models;
 
@@ -114,6 +115,20 @@ var autoCalibrateOption = new Option<bool>(
     aliases: new[] { "--auto-calibrate", "-ac" },
     description: "Auto-detect and filter catch-all responses");
 
+// ── Detection options ──────────────────────────────────────────────
+var detectOption = new Option<bool>(
+    aliases: new[] { "--detect" },
+    description: "Enable Smart Detection — run VulnerabilityDetector before filter to catch 500/error responses");
+
+var detectThresholdOption = new Option<string>(
+    aliases: new[] { "--detect-threshold" },
+    getDefaultValue: () => "likely",
+    description: "Detection bypass threshold: suspicious (score>=15) | likely (score>=40, default) | confirmed (score>=70)");
+    
+var detectConfirmOption = new Option<bool>(
+    aliases: new[] { "--confirm" },
+    description: "Enable Auto-Retest confirmation logic");
+
 // ── Root command ─────────────────────────────────────────────────────────────
 var rootCommand = new RootCommand("WebFuzzer - Web fuzzing tool inspired by ffuf");
 
@@ -146,6 +161,10 @@ rootCommand.AddOption(proxyOption);
 rootCommand.AddOption(timeoutOption);
 rootCommand.AddOption(rateOption);
 rootCommand.AddOption(autoCalibrateOption);
+// Detection
+rootCommand.AddOption(detectOption);
+rootCommand.AddOption(detectThresholdOption);
+rootCommand.AddOption(detectConfirmOption);
 
 rootCommand.SetHandler(async (context) =>
 {
@@ -192,6 +211,16 @@ rootCommand.SetHandler(async (context) =>
         TimeoutSeconds = context.ParseResult.GetValueForOption(timeoutOption),
         RateLimit      = context.ParseResult.GetValueForOption(rateOption),
         AutoCalibrate  = context.ParseResult.GetValueForOption(autoCalibrateOption),
+
+        // Smart Detection
+        EnableDetection = context.ParseResult.GetValueForOption(detectOption),
+        DetectionBypassThreshold = (context.ParseResult.GetValueForOption(detectThresholdOption) ?? "likely") switch
+        {
+            "suspicious" => Severity.Suspicious,
+            "confirmed"  => Severity.Confirmed,
+            _            => Severity.Likely  // default
+        },
+        EnableConfirmation = context.ParseResult.GetValueForOption(detectConfirmOption),
     };
 
     var engine = new FuzzEngine(options);

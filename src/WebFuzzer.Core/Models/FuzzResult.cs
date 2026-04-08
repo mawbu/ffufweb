@@ -15,4 +15,16 @@ public class FuzzResult
     public string? Error { get; set; }
     public bool IsFiltered { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// True nếu result này KHÔNG pass các Soft Rule mặc định (như MatchCodes 2xx, kích thước mặc định)
+    /// NHƯNG được giữ lại nhờ VulnerabilityDetector phát hiện có khả năng là lỗi nghiêm trọng (score vượt threshold).
+    /// </summary>
+    public bool IsRetainedByDetection { get; set; }
+
+    // Metadata từ detection engine
+    public int DetectionScore { get; set; }
+    public string? DetectedVulnType { get; set; }
+    public string? DetectionSummary { get; set; }
+    public string? ConfirmationSummary { get; set; }
 }

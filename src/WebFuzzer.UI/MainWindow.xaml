@@ -6,22 +6,46 @@
         WindowBackdropType="Mica"
         ExtendsContentIntoTitleBar="True"
         WindowCornerPreference="Default"
+        WindowStyle="None"
         FontFamily="Consolas" MinWidth="1000" MinHeight="600">
 
     <ui:FluentWindow.Resources>
-        <!-- Tiêu đề section: dùng màu accent của hệ thống -->
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <Style x:Key="SectionHeader" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Heavy"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Margin" Value="0,0,0,10"/>
             <Setter Property="Foreground" Value="{DynamicResource SystemAccentColorPrimaryBrush}"/>
         </Style>
-        <!-- Field label: màu rõ, không mờ nhạt -->
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+        </Style>
+
+        <!-- Row style theo severity -->
+        <Style x:Key="SeverityRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding RowSeverity}" Value="Confirmed">
+                    <Setter Property="Background" Value="#22FF3B30"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding RowSeverity}" Value="Likely">
+                    <Setter Property="Background" Value="#22FF8C00"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding RowSeverity}" Value="Suspicious">
+                    <Setter Property="Background" Value="#22FFD700"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Style cho signal chip trong Detail Panel -->
+        <Style x:Key="SignalChip" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="0,3,0,0"/>
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}"/>
         </Style>
     </ui:FluentWindow.Resources>
 
@@ -84,7 +108,27 @@
                         <ui:TextBox x:Name="TxtFilterSize" PlaceholderText="e.g. 416" Margin="0,0,0,12"/>
 
                         <TextBlock Text="Match Regex (-mr)" Style="{StaticResource FieldLabel}"/>
-                        <ui:TextBox x:Name="TxtMatchRegex" PlaceholderText="regex" Margin="0,0,0,12"/>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ui:TextBox x:Name="TxtMatchRegex" PlaceholderText="regex pattern in body"/>
+                            <ui:Button Grid.Column="1" x:Name="BtnPreset" Content="Preset" 
+                                       Click="BtnPreset_Click" Margin="4,0,0,0" Padding="8,4" FontSize="11"
+                                       Icon="{ui:SymbolIcon LightbulbCircle20}" ToolTip="Error Detection Presets"/>
+                        </Grid>
+                        <ComboBox x:Name="CmbErrorPreset" Margin="0,0,0,12" HorizontalAlignment="Stretch"
+                                  SelectionChanged="CmbErrorPreset_SelectionChanged">
+                            <ComboBoxItem Content="-- Chọn Error Preset --" IsSelected="True" Tag=""/>
+                            <ComboBoxItem Content="🔴 SQLi Error (SQL syntax, SQLITE)" Tag="SQLITE_ERROR|syntax error|SQLiteException|ORA-\d+|mysql_fetch|pg_query"/>
+                            <ComboBoxItem Content="🔴 Auth Bypass (token, admin)" Tag="token|&quot;role&quot;:&quot;admin&quot;|authentication|bearer"/>
+                            <ComboBoxItem Content="🟡 Server Error (500, exception)" Tag="Internal Server Error|exception|stack trace|Traceback|NullPointerException"/>
+                            <ComboBoxItem Content="🟡 Path Traversal (root, etc)" Tag="root:x:|boot\.ini|\[extensions\]|&lt;!DOCTYPE"/>
+                            <ComboBoxItem Content="🟢 XSS Reflected (payload echo)" Tag="alert\(|onerror=|onload=|javascript:"/>
+                            <ComboBoxItem Content="🟢 Info Disclosure (version, debug)" Tag="version|debug|password|secret|api.key|config"/>
+                            <ComboBoxItem Content="🔵 IDOR (found user data)" Tag="&quot;email&quot;|&quot;username&quot;|&quot;role&quot;|&quot;id&quot;:\d"/>
+                        </ComboBox>
 
                         <TextBlock Text="Filter Regex (-fr)" Style="{StaticResource FieldLabel}"/>
                         <ui:TextBox x:Name="TxtFilterRegex" PlaceholderText="regex" Margin="0,0,0,24"/>
@@ -119,13 +163,29 @@
                         
                         <CheckBox x:Name="ChkAutoCalibrate" Content="Auto-Calibrate" IsChecked="True" Margin="0,0,0,8"/>
                         <CheckBox x:Name="ChkVerbose" Content="Verbose" Margin="0,0,0,8"/>
-                        <CheckBox x:Name="ChkFollowRedirects" Content="Follow Redirects" Margin="0,0,0,16"/>
+                        <CheckBox x:Name="ChkFollowRedirects" Content="Follow Redirects" Margin="0,0,0,8"/>
+
+                        <!-- ✅ MỚI: Smart Detection & Confirmation checkbox -->
+                        <CheckBox x:Name="ChkSmartDetection" Content="☑ Smart Detection" IsChecked="True"
+                                  Margin="0,0,0,8"
+                                  ToolTip="Tự động phân tích và chấm điểm vulnerability sau mỗi request"/>
+                        
+                        <CheckBox x:Name="ChkEnableConfirmation" Content="✅ Auto-Retest (High Precision)" IsChecked="True"
+                                  Margin="0,0,0,16"
+                                  ToolTip="Gửi thêm request đối chứng để loại bỏ báo động giả (SQLi, IDOR)"/>
 
                         <TextBlock Text="Proxy" Style="{StaticResource FieldLabel}"/>
                         <ui:TextBox x:Name="TxtProxy" PlaceholderText="http://127.0.0.1:8080" Margin="0,0,0,12"/>
 
-                        <TextBlock Text="Custom Header" Style="{StaticResource FieldLabel}"/>
-                        <ui:TextBox x:Name="TxtHeader" PlaceholderText="Auth: Bearer ..." Margin="0,0,0,12"/>
+                        <TextBlock Text="Custom Headers (1 header/line)" Style="{StaticResource FieldLabel}"/>
+                        <ui:TextBox x:Name="TxtHeader" 
+                                 PlaceholderText="Authorization: Bearer ..."
+                                 AcceptsReturn="True" TextWrapping="Wrap"
+                                 Height="70" VerticalScrollBarVisibility="Auto"
+                                 Padding="8,6" Margin="0,0,0,12"/>
+
+                        <TextBlock Text="Content-Type" Style="{StaticResource FieldLabel}"/>
+                        <ui:TextBox x:Name="TxtContentType" PlaceholderText="application/json" Margin="0,0,0,12"/>
 
                         <TextBlock Text="POST Data" Style="{StaticResource FieldLabel}"/>
                         <ui:TextBox x:Name="TxtData" PlaceholderText="user=admin" Margin="0,0,0,24"/>
@@ -193,6 +253,11 @@
                         
                         <TextBlock Text="Matches:" Opacity="0.6" Margin="0,0,6,0" VerticalAlignment="Center"/>
                         <TextBlock x:Name="TxtStatMatches" Text="0" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource SystemFillColorSuccessBrush}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+
+                        <!-- ✅ MỚI: Vuln counter -->
+                        <TextBlock Text="Vulns:" Opacity="0.6" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtStatVulns" Text="0" FontWeight="Bold" FontSize="14"
+                                   Foreground="{DynamicResource SystemFillColorCriticalBrush}" Margin="0,0,16,0" VerticalAlignment="Center"/>
                         
                         <TextBlock Text="Req/s:" Opacity="0.6" Margin="0,0,6,0" VerticalAlignment="Center"/>
                         <TextBlock x:Name="TxtStatRps" Text="0" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource SystemFillColorCautionBrush}" VerticalAlignment="Center"/>
@@ -207,12 +272,15 @@
                     </Border>
                 </Grid>
 
-                <!-- Results & Terminal Split -->
+                <!-- Results, Detail Panel & Terminal -->
                 <Grid Grid.Row="2">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="2*"/>
+                        <RowDefinition Height="2*" MinHeight="120"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="1*"/>
+                        <!-- ✅ MỚI: Detail Panel — collapse khi không có row được chọn -->
+                        <RowDefinition Height="Auto" x:Name="DetailPanelRow"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="1*" MinHeight="80"/>
                     </Grid.RowDefinitions>
 
                     <!-- Results DataGrid -->
@@ -228,6 +296,17 @@
                                     <StackPanel Orientation="Horizontal">
                                         <ui:SymbolIcon Symbol="Table20" Margin="0,0,8,0"/>
                                         <TextBlock Text="RESULTS" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <!-- ✅ MỚI: Filter severity -->
+                                        <TextBlock Text="|" Opacity="0.3" Margin="12,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Filter:" Opacity="0.6" Margin="0,0,6,0" VerticalAlignment="Center" FontSize="11"/>
+                                        <ComboBox x:Name="CmbSeverityFilter" SelectedIndex="0"
+                                                  SelectionChanged="CmbSeverityFilter_SelectionChanged"
+                                                  Padding="6,3" FontSize="11" VerticalAlignment="Center">
+                                            <ComboBoxItem Content="All"/>
+                                            <ComboBoxItem Content="🔴 Confirmed"/>
+                                            <ComboBoxItem Content="🟠 Likely+"/>
+                                            <ComboBoxItem Content="🟡 Suspicious+"/>
+                                        </ComboBox>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                         <ui:Button Content="Export JSON" Click="ExportJson_Click" Margin="0,0,8,0" Padding="10,4" FontSize="11" Icon="{ui:SymbolIcon DocumentArrowDown20}"/>
@@ -239,11 +318,45 @@
                             <DataGrid Grid.Row="1" x:Name="ResultsGrid" 
                                       AutoGenerateColumns="False" IsReadOnly="True" 
                                       BorderThickness="0" Background="Transparent"
-                                      RowBackground="Transparent" AlternatingRowBackground="{DynamicResource ControlFillColorSecondaryBrush}"
-                                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
-                                      HeadersVisibility="Column" SelectionMode="Single">
+                                      RowBackground="Transparent"
+                                      AlternatingRowBackground="{DynamicResource ControlFillColorSecondaryBrush}"
+                                      GridLinesVisibility="Horizontal"
+                                      HorizontalGridLinesBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                                      HeadersVisibility="Column" SelectionMode="Single"
+                                      RowStyle="{StaticResource SeverityRowStyle}"
+                                      SelectionChanged="ResultsGrid_SelectionChanged">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Status" Binding="{Binding StatusCode}" Width="80">
+                                    <!-- ✅ MỚI: Cột Confidence & Verified Badge -->
+                                    <DataGridTemplateColumn Header="Vuln / Conf" Width="140">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <ui:SymbolIcon Symbol="CheckmarkCircle20" Foreground="{DynamicResource SystemFillColorSuccessBrush}" 
+                                                                   Visibility="{Binding IsVerified, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                                   Margin="0,0,4,0" ToolTip="Verified by Auto-Retest"/>
+                                                    <TextBlock Text="{Binding ConfidenceLabel}" FontWeight="Bold" FontSize="13" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <DataGridTextColumn Header="Vulnerability" Binding="{Binding VulnType}" Width="100" FontWeight="SemiBold">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding VulnType}" Value="IDOR">
+                                                        <Setter Property="Foreground" Value="Cyan"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding VulnType}" Value="SQLi">
+                                                        <Setter Property="Foreground" Value="Red"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+
+                                    <DataGridTextColumn Header="Status" Binding="{Binding StatusCode}" Width="70">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                                                 <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -251,6 +364,9 @@
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding StatusCode}" Value="200">
                                                         <Setter Property="Foreground" Value="{DynamicResource SystemFillColorSuccessBrush}"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding StatusCode}" Value="500">
+                                                        <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}"/>
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding StatusCode}" Value="403">
                                                         <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}"/>
@@ -263,9 +379,9 @@
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <DataGridTextColumn Header="Word / Path" Binding="{Binding Word}" Width="160" FontWeight="SemiBold"/>
-                                    <DataGridTextColumn Header="Size" Binding="{Binding ContentLength}" Width="80"/>
-                                    <DataGridTextColumn Header="Words" Binding="{Binding WordCount}" Width="80"/>
-                                    <DataGridTextColumn Header="Lines" Binding="{Binding LineCount}" Width="80"/>
+                                    <DataGridTextColumn Header="Size" Binding="{Binding ContentLength}" Width="70"/>
+                                    <DataGridTextColumn Header="Words" Binding="{Binding WordCount}" Width="65" Visibility="Collapsed"/>
+                                    <DataGridTextColumn Header="Lines" Binding="{Binding LineCount}" Width="60" Visibility="Collapsed"/>
                                     <DataGridTextColumn Header="Time (ms)" Binding="{Binding DurationMs}" Width="80"/>
                                     <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="*"/>
                                 </DataGrid.Columns>
@@ -273,11 +389,84 @@
                         </Grid>
                     </ui:Card>
 
-                    <!-- Splitter -->
+                    <!-- Splitter trên -->
                     <GridSplitter Grid.Row="1" Height="8" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeNS"/>
 
+                    <!-- ✅ MỚI: Detail Panel — hiện khi click row có detection -->
+                    <ui:Card Grid.Row="2" x:Name="DetailPanel" Margin="0,0,0,4" Padding="0"
+                             Visibility="Collapsed">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Header của Detail Panel -->
+                            <Border Grid.Row="0" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                                    BorderThickness="0,0,0,1" Padding="16,8"
+                                    Background="{DynamicResource ControlFillColorDefaultBrush}">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:SymbolIcon Symbol="ShieldError20" Margin="0,0,8,0"/>
+                                        <TextBlock Text="DETECTION DETAIL" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtDetailSummary" Margin="12,0,0,0"
+                                                   VerticalAlignment="Center" Opacity="0.8" FontSize="12" Foreground="White"/>
+                                        <Border Background="#3300FF00" CornerRadius="4" Margin="10,0,0,0" Padding="8,2" x:Name="BrdVerified" Visibility="Collapsed">
+                                             <TextBlock x:Name="TxtConfirmation" FontSize="11" FontWeight="Bold" Foreground="#FF00FF00"/>
+                                        </Border>
+                                    </StackPanel>
+                                    <ui:Button HorizontalAlignment="Right" Content="✕" Padding="8,2" FontSize="11"
+                                               Click="CloseDetailPanel_Click"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Signal list -->
+                            <ItemsControl Grid.Row="1" x:Name="SignalList" Margin="12,8,12,8">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource SignalChip}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <!-- VulnType badge -->
+                                                <Border Grid.Column="0" CornerRadius="3" Padding="5,2" Margin="0,0,8,0"
+                                                        Background="{DynamicResource SystemAccentColorPrimaryBrush}">
+                                                    <TextBlock Text="{Binding VulnType}" FontSize="10" FontWeight="Bold"
+                                                               Foreground="White"/>
+                                                </Border>
+                                                <!-- Signal name -->
+                                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold"
+                                                           FontSize="12" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                                <!-- Evidence -->
+                                                <TextBlock Grid.Column="2" Text="{Binding Evidence}" FontSize="11"
+                                                           Opacity="0.7" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                <!-- Weight badge -->
+                                                <Border Grid.Column="3" CornerRadius="3" Padding="6,2" Margin="8,0,0,0"
+                                                        Background="{DynamicResource SystemFillColorCriticalBackgroundBrush}">
+                                                    <TextBlock FontSize="11" FontWeight="Bold"
+                                                               Foreground="{DynamicResource SystemFillColorCriticalBrush}">
+                                                        <TextBlock.Text>
+                                                            <Binding Path="Weight" StringFormat="+{0}"/>
+                                                        </TextBlock.Text>
+                                                    </TextBlock>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </ui:Card>
+
+                    <!-- Splitter dưới -->
+                    <GridSplitter Grid.Row="3" Height="8" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeNS"/>
+
                     <!-- Terminal -->
-                    <ui:Card Grid.Row="2" Margin="0" Padding="0" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch">
+                    <ui:Card Grid.Row="4" Margin="0" Padding="0" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch">
                          <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>

