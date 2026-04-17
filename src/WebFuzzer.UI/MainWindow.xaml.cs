@@ -493,21 +493,19 @@ namespace WebFuzzer.UI
 
                 if (baselineResults.Count > 0)
                 {
-                    var valid2xx = baselineResults.Where(r => r.StatusCode >= 200 && r.StatusCode < 300).ToList();
-                    if (valid2xx.Count > 0)
-                    {
-                        _detector.SetBaseline(valid2xx);
-                        AppendTerminal($"[Detection] Baseline ready: " +
-                            $"status={valid2xx[0].StatusCode}, " +
-                            $"avgSize={valid2xx.Average(r => r.ContentLength):F0}, " +
-                            $"avgTime={valid2xx.Average(r => r.DurationMs):F0}ms " +
-                            $"(from {valid2xx.Count} 2xx samples)");
-                    }
-                    else
-                    {
-                        AppendTerminal("[Detection] ⚠ All baseline probes returned non-2xx — detection disabled.");
-                    }
-                }
+                    var bestGroup = baselineResults
+                        .GroupBy(r => r.StatusCode)
+                        .OrderByDescending(g => g.Count())
+                        .First();
+                    
+                    var validProbes = bestGroup.ToList();
+                    
+                    _detector.SetBaseline(validProbes);
+                    AppendTerminal($"[Detection] Baseline ready: " +
+                        $"status={validProbes[0].StatusCode}, " +
+                        $"avgSize={validProbes.Average(r => r.ContentLength):F0}, " +
+                        $"avgTime={validProbes.Average(r => r.DurationMs):F0}ms " +
+                        $"(from {validProbes.Count} samples)");                }
             }
             catch (Exception ex)
             {
