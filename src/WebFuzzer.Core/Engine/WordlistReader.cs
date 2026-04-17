@@ -7,10 +7,13 @@ public static class WordlistReader
         [System.Runtime.CompilerServices.EnumeratorCancellation]
         CancellationToken ct = default)
     {
-        // Đọc từ stdin nếu path là "-"
+        // ✅ FIX: Mở file với FileShare.Delete — cho phép File.Delete() được gọi
+        //      trong khi file vẫn đang được đọc (tránh "being used by another process")
         TextReader reader = path == "-"
             ? Console.In
-            : new StreamReader(path);
+            : new StreamReader(
+                new FileStream(path, FileMode.Open, FileAccess.Read,
+                               FileShare.Read | FileShare.Delete));
 
         await using var disposable = reader as IAsyncDisposable;
 

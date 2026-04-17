@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -19,6 +20,9 @@ using WebFuzzer.Core.Models;
 using WebFuzzer.UI.ViewModels;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
+using MessageBox = System.Windows.MessageBox;
+using MessageBoxButton = System.Windows.MessageBoxButton;
+using MessageBoxImage = System.Windows.MessageBoxImage;
 
 namespace WebFuzzer.UI
 {
@@ -27,27 +31,35 @@ namespace WebFuzzer.UI
         // ── State ────────────────────────────────────────────────────────────
         private CancellationTokenSource? _cts;
         private readonly ObservableCollection<FuzzResultViewModel> _results = new();
-        private ICollectionView? _resultsView;   // ✅ MỚI: dùng để filter theo severity
+        private ICollectionView? _resultsView;
         private readonly Stopwatch _stopwatch = new();
         private long _requestCount;
         private long _matchCount;
-        private long _vulnCount;                  // số vuln detected
-        private long _bypassCount;                // số result bypass filter nhờ detection
-        private long _confirmedCount;             // số kết quả đã được VERIFIED
+        private long _vulnCount;
+        private long _bypassCount;
+        private long _confirmedCount;
         private System.Windows.Threading.DispatcherTimer? _statsTimer;
+
+        // ── Status Count Badges ──────────────────────────────────────────────
+        private long _cnt2xx;
+        private long _cnt3xx;
+        private long _cnt4xx;
+        private long _cnt5xx;
 
         // ── Detection ────────────────────────────────────────────────────────
         private readonly VulnerabilityDetector _detector = new();
-        private Severity _filterSeverity = Severity.Normal; // filter threshold trong UI view
+        private Severity _filterSeverity = Severity.Normal;
+
+        // ✅ MỚI: Status filter state
+        private int _filterStatusGroup = 0; // 0=All, 1=2xx, 2=3xx, 3=4xx, 4=5xx
 
         public MainWindow()
         {
             ApplicationThemeManager.Apply(ApplicationTheme.Dark);
             InitializeComponent();
 
-            // ✅ MỚI: dùng CollectionViewSource để filter/sort
             _resultsView = CollectionViewSource.GetDefaultView(_results);
-            _resultsView.Filter = FilterBySeverity;
+            _resultsView.Filter = FilterResults; // ✅ FIX: Dùng filter kết hợp severity + status
             ResultsGrid.ItemsSource = _resultsView;
 
             // Mỗi khi thay đổi field → cập nhật command preview
@@ -70,7 +82,6 @@ namespace WebFuzzer.UI
             ChkVerbose.Checked          += (s, e) => UpdateCommandPreview();
             ChkVerbose.Unchecked        += (s, e) => UpdateCommandPreview();
 
-            // Stats timer — cập nhật req/sec mỗi 500ms
             _statsTimer = new System.Windows.Threading.DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(500)
@@ -80,23 +91,33 @@ namespace WebFuzzer.UI
             UpdateCommandPreview();
         }
 
-        // ── Detection Filter ─────────────────────────────────────────────────
+        // ── Combined Filter (Severity + Status) ──────────────────────────────
 
         /// <summary>
-        /// Filter callback cho ICollectionView.
-        /// Chỉ hiện row có severity >= _filterSeverity.
+        /// ✅ FIX: Filter kết hợp severity VÀ status code group.
+        /// Thay thế FilterBySeverity cũ — giờ một hàm xử lý cả hai.
         /// </summary>
-        private bool FilterBySeverity(object obj)
+        private bool FilterResults(object obj)
         {
             if (obj is not FuzzResultViewModel vm) return false;
-            return _filterSeverity == Severity.Normal
+
+            // Severity filter
+            bool passSeverity = _filterSeverity == Severity.Normal
                 || vm.Detection.Severity >= _filterSeverity;
+
+            // ✅ MỚI: Status code group filter
+            bool passStatus = _filterStatusGroup switch
+            {
+                1 => vm.StatusCode >= 200 && vm.StatusCode < 300,
+                2 => vm.StatusCode >= 300 && vm.StatusCode < 400,
+                3 => vm.StatusCode >= 400 && vm.StatusCode < 500,
+                4 => vm.StatusCode >= 500,
+                _ => true
+            };
+
+            return passSeverity && passStatus;
         }
 
-        /// <summary>
-        /// ✅ MỚI: Severity filter combobox handler.
-        /// Index: 0=All, 1=Confirmed, 2=Likely+, 3=Suspicious+
-        /// </summary>
         private void CmbSeverityFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             _filterSeverity = CmbSeverityFilter.SelectedIndex switch
@@ -109,12 +130,113 @@ namespace WebFuzzer.UI
             _resultsView?.Refresh();
         }
 
-        // ── Detail Panel ─────────────────────────────────────────────────────
+        /// <summary>✅ MỚI: Filter theo status code group</summary>
+        private void CmbStatusFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _filterStatusGroup = CmbStatusFilter.SelectedIndex; // 0=All,1=2xx,2=3xx,3=4xx,4=5xx
+            _resultsView?.Refresh();
+        }
+
+        // ── SQL Wordlist Quick Selector ───────────────────────────────────────
+
+        /// <summary>✅ MỚI: Chọn nhanh SQL wordlist từ ComboBox</summary>
+        private void CmbSqlPayload_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (CmbSqlPayload.SelectedItem is ComboBoxItem item
+                && item.Tag is string path && !string.IsNullOrEmpty(path))
+            {
+                TxtWordlist.Text = path;
+                UpdateCommandPreview();
+            }
+        }
+
+        // ── IDOR Mode ─────────────────────────────────────────────────────────
 
         /// <summary>
-        /// ✅ MỚI: Hiển thị Detail Panel khi click row trong DataGrid.
-        /// Chỉ hiện nếu row có detection signals.
+        /// Auto-detect ID cuối trong URL (ví dụ: /api/Users/3 → /api/Users/FUZZ, id=3)
+        /// Hỗ trợ: path segment cuối là số, hoặc query param ?id=N
         /// </summary>
+        private static (string? fuzzedUrl, int detectedId) AutoDetectIdInUrl(string url)
+        {
+            // Thử match path segment cuối: /something/123 hoặc /something/123?...
+            var pathMatch = System.Text.RegularExpressions.Regex.Match(
+                url, @"(.*/)([0-9]+)(/|\?.*)?$");
+            if (pathMatch.Success && int.TryParse(pathMatch.Groups[2].Value, out int pathId))
+            {
+                var fuzzed = pathMatch.Groups[1].Value + "FUZZ" + pathMatch.Groups[3].Value;
+                return (fuzzed, pathId);
+            }
+
+            // Thử match query param: ?id=123 hoặc ?userId=123
+            var queryMatch = System.Text.RegularExpressions.Regex.Match(
+                url, @"([?&](?:id|userId|user_id|orderId|order_id|productId)=)([0-9]+)",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (queryMatch.Success && int.TryParse(queryMatch.Groups[2].Value, out int queryId))
+            {
+                var fuzzed = url.Replace(queryMatch.Groups[2].Value, "FUZZ");
+                return (fuzzed, queryId);
+            }
+
+            return (null, 0);
+        }
+
+        /// <summary>
+        /// Tạo wordlist IDOR từ dải ID, lưu vào file temp.
+        /// Nếu URL chưa có FUZZ → auto-detect ID và rewrite URL.
+        /// </summary>
+        private string? PrepareIdorWordlist()
+        {
+            if (ChkIdorMode.IsChecked != true) return null;
+
+            // ✅ FIX: Auto-detect ID nếu URL chưa có FUZZ
+            if (!TxtUrl.Text.Contains("FUZZ"))
+            {
+                var (fuzzedUrl, detectedId) = AutoDetectIdInUrl(TxtUrl.Text);
+                if (fuzzedUrl != null)
+                {
+                    AppendTerminal($"[IDOR] Auto-detected ID={detectedId} → URL rewritten: {fuzzedUrl}");
+                    TxtUrl.Text = fuzzedUrl;
+
+                    // Nếu user chưa đổi range mặc định → tự điền range xung quanh ID đó
+                    if (TxtIdorFrom.Text == "1" && TxtIdorTo.Text == "100")
+                    {
+                        TxtIdorFrom.Text = Math.Max(1, detectedId - 30).ToString();
+                        TxtIdorTo.Text   = (detectedId + 30).ToString();
+                        AppendTerminal($"[IDOR] Auto-range: {TxtIdorFrom.Text} → {TxtIdorTo.Text}");
+                    }
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Không tìm thấy ID trong URL.\n\n" +
+                        "Hãy thêm FUZZ vào URL thủ công, ví dụ:\n" +
+                        "  https://example.com/api/Users/FUZZ\n" +
+                        "  https://example.com/order?id=FUZZ",
+                        "IDOR Mode", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return null;
+                }
+            }
+
+            if (!int.TryParse(TxtIdorFrom.Text, out int from) ||
+                !int.TryParse(TxtIdorTo.Text, out int to) ||
+                from > to)
+            {
+                MessageBox.Show("IDOR range không hợp lệ. Kiểm tra ID From và ID To.",
+                    "IDOR Mode", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return null;
+            }
+
+            // Tạo file temp với dải số
+            var tempPath = Path.Combine(Path.GetTempPath(), $"webfuzzer_idor_{Guid.NewGuid():N}.txt");
+            var lines = Enumerable.Range(from, to - from + 1).Select(i => i.ToString());
+            File.WriteAllLines(tempPath, lines);
+
+            AppendTerminal($"[IDOR] Generated {to - from + 1} IDs ({from} → {to}) → {tempPath}");
+            return tempPath;
+        }
+
+        // ── Detail Panel ─────────────────────────────────────────────────────
+
         private void ResultsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (ResultsGrid.SelectedItem is not FuzzResultViewModel vm)
@@ -125,17 +247,14 @@ namespace WebFuzzer.UI
 
             var detection = vm.Detection;
 
-            // Không có signal nào → ẩn panel
             if (detection.Severity == Severity.Normal || detection.Signals.Count == 0)
             {
                 DetailPanel.Visibility = Visibility.Collapsed;
                 return;
             }
 
-            // Cập nhật summary text trong header
             TxtDetailSummary.Text = detection.Summary;
 
-            // Hiển thị trạng thái xác thực (Verified)
             if (vm.IsVerified)
             {
                 BrdVerified.Visibility = Visibility.Visible;
@@ -146,13 +265,10 @@ namespace WebFuzzer.UI
                 BrdVerified.Visibility = Visibility.Collapsed;
             }
 
-            // Bind signal list
             SignalList.ItemsSource = detection.Signals;
-
             DetailPanel.Visibility = Visibility.Visible;
         }
 
-        /// <summary>✅ MỚI: Đóng Detail Panel bằng nút ✕</summary>
         private void CloseDetailPanel_Click(object sender, RoutedEventArgs e)
         {
             DetailPanel.Visibility = Visibility.Collapsed;
@@ -162,7 +278,7 @@ namespace WebFuzzer.UI
         // ── Error Preset ─────────────────────────────────────────────────────
         private void CmbErrorPreset_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (CmbErrorPreset.SelectedItem is System.Windows.Controls.ComboBoxItem item
+            if (CmbErrorPreset.SelectedItem is ComboBoxItem item
                 && item.Tag is string pattern && !string.IsNullOrEmpty(pattern))
             {
                 TxtMatchRegex.Text = pattern;
@@ -185,7 +301,7 @@ namespace WebFuzzer.UI
             if (!string.IsNullOrWhiteSpace(TxtWordlist.Text))
                 sb.Append($" -w {TxtWordlist.Text}");
 
-            var method = (CmbMethod.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "GET";
+            var method = (CmbMethod.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "GET";
             if (method != "GET") sb.Append($" -X {method}");
 
             if (!string.IsNullOrWhiteSpace(TxtMatchCodes.Text) && TxtMatchCodes.Text != "200,301,302")
@@ -218,6 +334,8 @@ namespace WebFuzzer.UI
                 sb.Append(" --confirm");
             if (ChkVerbose.IsChecked == true)
                 sb.Append(" -v");
+            if (ChkIdorMode.IsChecked == true)
+                sb.Append($" --idor {TxtIdorFrom.Text}-{TxtIdorTo.Text}");
 
             TxtCommandPreview.Text = sb.ToString();
         }
@@ -227,40 +345,49 @@ namespace WebFuzzer.UI
         {
             if (!ValidateInputs()) return;
 
-            // Reset state
+            // ✅ MỚI: IDOR mode — override wordlist bằng dải ID
+            string? idorTempFile = null;
+            if (ChkIdorMode.IsChecked == true)
+            {
+                idorTempFile = PrepareIdorWordlist();
+                if (idorTempFile == null) return; // validation failed
+            }
+
             _results.Clear();
             _requestCount = 0;
             _matchCount   = 0;
             _vulnCount    = 0;
             _bypassCount  = 0;
+            _cnt2xx = _cnt3xx = _cnt4xx = _cnt5xx = 0;
             TxtStatRequests.Text = "0";
             TxtStatMatches.Text  = "0";
             TxtStatVulns.Text    = "0";
             TxtStatRps.Text      = "0";
+            TxtBadge2xx.Text = TxtBadge3xx.Text = TxtBadge4xx.Text = TxtBadge5xx.Text = "0";
             DetailPanel.Visibility = Visibility.Collapsed;
 
             SetRunningState(true);
             AppendTerminal("[WebFuzzer] Starting fuzzer...");
             AppendTerminal($"[WebFuzzer] Target: {TxtUrl.Text}");
-            AppendTerminal($"[WebFuzzer] Wordlist: {TxtWordlist.Text}");
+
+            if (idorTempFile != null)
+                AppendTerminal($"[IDOR] Mode: scanning IDs {TxtIdorFrom.Text} → {TxtIdorTo.Text}");
+            else
+                AppendTerminal($"[WebFuzzer] Wordlist: {TxtWordlist.Text}");
 
             _cts = new CancellationTokenSource();
             _stopwatch.Restart();
             _statsTimer!.Start();
 
-            // ✅ MỚI: Thiết lập baseline trước khi fuzz nếu Smart Detection bật
-            bool detectionEnabled = ChkSmartDetection.IsChecked == true;
-            if (detectionEnabled)
-            {
-                await SetupBaselineAsync();
-            }
-
             try
             {
-                var options = BuildOptions();
-                // Truyền detector vào engine — detection sẽ chạy TRƯỚC filter trong engine
+                bool detectionEnabled = ChkSmartDetection.IsChecked == true;
+                if (detectionEnabled)
+                    await SetupBaselineAsync();
+
+                var options = BuildOptions(idorTempFile);
                 var detectorForEngine = (detectionEnabled && _detector.IsReady) ? _detector : null;
-                var engine  = new FuzzEngine(options, OnResult, OnProgress, OnTerminalLine, detectorForEngine);
+                var engine = new FuzzEngine(options, OnResult, OnProgress, OnTerminalLine, detectorForEngine);
                 await engine.RunAsync(_cts.Token);
             }
             catch (OperationCanceledException)
@@ -269,7 +396,9 @@ namespace WebFuzzer.UI
             }
             catch (Exception ex)
             {
-                AppendTerminal($"[ERROR] {ex.Message}");
+                var fullMsg = ex.InnerException != null ? $"{ex.Message} \u2192 {ex.InnerException.Message}" : ex.Message;
+                AppendTerminal($"[ERROR] {fullMsg}");
+                try { System.IO.File.AppendAllText("crash.log", $"{DateTime.Now:s} [BtnRun]\n{ex}\n\n"); } catch { }
             }
             finally
             {
@@ -280,13 +409,28 @@ namespace WebFuzzer.UI
                 AppendTerminal($"[WebFuzzer] Done. {_matchCount} matches" +
                     (_bypassCount > 0 ? $", {_bypassCount} retained by detection" : "") +
                     $", {_vulnCount} vulns found in {_stopwatch.Elapsed:mm\\:ss\\.fff}");
+
+                // Dọn file IDOR temp — với retry nếu file vẫn còn bị giữ
+                if (idorTempFile != null)
+                {
+                    for (int _retry = 0; _retry < 3; _retry++)
+                    {
+                        try
+                        {
+                            if (File.Exists(idorTempFile)) File.Delete(idorTempFile);
+                            break; // thành công
+                        }
+                        catch (IOException)
+                        {
+                            // File còn đang bị đọc — chờ và thử lại
+                            if (_retry < 2) await Task.Delay(150);
+                        }
+                        catch { break; } // lỗi khác → bỏ qua
+                    }
+                }
             }
         }
 
-        /// <summary>
-        /// ✅ MỚI: Gửi 3 request baseline với payload "aaaa1234xyz",
-        /// lấy giá trị trung bình để thiết lập baseline cho VulnerabilityDetector.
-        /// </summary>
         private async Task SetupBaselineAsync()
         {
             const string BaselinePayload = "aaaa1234xyz";
@@ -294,8 +438,8 @@ namespace WebFuzzer.UI
 
             try
             {
-                var options = BuildOptions();
-                var baselineResults = new System.Collections.Generic.List<FuzzResult>();
+                var options = BuildOptions(null);
+                var baselineResults = new List<FuzzResult>();
 
                 var handler = new System.Net.Http.HttpClientHandler
                 {
@@ -311,34 +455,32 @@ namespace WebFuzzer.UI
                 using var client = new System.Net.Http.HttpClient(handler);
                 client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
 
-                // Gửi 3 request lấy trung bình
                 for (int i = 0; i < 3; i++)
                 {
                     if (_cts!.Token.IsCancellationRequested) break;
 
-                    var request = RequestBuilder.Build(options, BaselinePayload);
+                    var request   = RequestBuilder.Build(options, BaselinePayload);
                     var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
                     try
                     {
-                        var response = await client.SendAsync(request, _cts.Token);
+                        var response     = await client.SendAsync(request, _cts.Token);
                         stopwatch.Stop();
-
                         var responseBody = await response.Content.ReadAsStringAsync(_cts.Token);
 
                         baselineResults.Add(new FuzzResult
                         {
-                            Word = BaselinePayload,
-                            Payload = BaselinePayload,
-                            Url = request.RequestUri!.ToString(),
-                            StatusCode = (int)response.StatusCode,
+                            Word          = BaselinePayload,
+                            Payload       = BaselinePayload,
+                            Url           = request.RequestUri!.ToString(),
+                            StatusCode    = (int)response.StatusCode,
                             ContentLength = responseBody.Length,
-                            WordCount = responseBody.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Length,
-                            LineCount = responseBody.Split('\n').Length,
-                            DurationMs = stopwatch.ElapsedMilliseconds,
-                            ResponseBody = responseBody,
-                            ContentType = response.Content.Headers.ContentType?.ToString(),
-                            Timestamp = DateTime.UtcNow
+                            WordCount     = responseBody.Split(new[] { ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Length,
+                            LineCount     = responseBody.Split('\n').Length,
+                            DurationMs    = stopwatch.ElapsedMilliseconds,
+                            ResponseBody  = responseBody,
+                            ContentType   = response.Content.Headers.ContentType?.ToString(),
+                            Timestamp     = DateTime.UtcNow
                         });
                     }
                     catch (Exception ex)
@@ -346,12 +488,11 @@ namespace WebFuzzer.UI
                         AppendTerminal($"[Detection Error] Baseline request failed: {ex.Message}");
                     }
 
-                    await Task.Delay(100, _cts!.Token); // nhỏ để tránh rate limit
+                    await Task.Delay(100, _cts!.Token);
                 }
 
                 if (baselineResults.Count > 0)
                 {
-                    // Guard: chỉ dùng 2xx responses — 5xx sẽ skew size/timing baseline
                     var valid2xx = baselineResults.Where(r => r.StatusCode >= 200 && r.StatusCode < 300).ToList();
                     if (valid2xx.Count > 0)
                     {
@@ -366,10 +507,6 @@ namespace WebFuzzer.UI
                     {
                         AppendTerminal("[Detection] ⚠ All baseline probes returned non-2xx — detection disabled.");
                     }
-                }
-                else
-                {
-                    AppendTerminal("[Detection] ⚠ Baseline failed — detection disabled for this run.");
                 }
             }
             catch (Exception ex)
@@ -388,30 +525,37 @@ namespace WebFuzzer.UI
         {
             _results.Clear();
             _vulnCount = 0;
+            _cnt2xx = _cnt3xx = _cnt4xx = _cnt5xx = 0;
             TxtStatRequests.Text = "0";
             TxtStatMatches.Text  = "0";
             TxtStatVulns.Text    = "0";
             TxtStatRps.Text      = "0";
+            TxtBadge2xx.Text = TxtBadge3xx.Text = TxtBadge4xx.Text = TxtBadge5xx.Text = "0";
             DetailPanel.Visibility = Visibility.Collapsed;
             AppendTerminal("[WebFuzzer] Results cleared.");
         }
 
         // ── Callbacks từ FuzzEngine ──────────────────────────────────────────
 
-        /// <summary>
-        /// ✅ THAY ĐỔI: Nhận FuzzResult, wrap thành ViewModel, chạy detection,
-        /// sau đó add vào collection. Tất cả trên Dispatcher thread.
-        /// </summary>
         private void OnResult(FuzzResult result)
         {
             Dispatcher.Invoke(() =>
             {
                 var vm = new FuzzResultViewModel(result);
 
+                // ── Update status badges ─────────────────────────────────────
+                if (result.StatusCode >= 200 && result.StatusCode < 300)
+                { Interlocked.Increment(ref _cnt2xx); TxtBadge2xx.Text = _cnt2xx.ToString(); }
+                else if (result.StatusCode >= 300 && result.StatusCode < 400)
+                { Interlocked.Increment(ref _cnt3xx); TxtBadge3xx.Text = _cnt3xx.ToString(); }
+                else if (result.StatusCode >= 400 && result.StatusCode < 500)
+                { Interlocked.Increment(ref _cnt4xx); TxtBadge4xx.Text = _cnt4xx.ToString(); }
+                else if (result.StatusCode >= 500)
+                { Interlocked.Increment(ref _cnt5xx); TxtBadge5xx.Text = _cnt5xx.ToString(); }
+
                 bool detectionEnabled = ChkSmartDetection.IsChecked == true;
                 if (detectionEnabled && _detector.IsReady && !result.IsRetainedByDetection)
                 {
-                    // Đã pass filter bình thường (ko mượn cờ RetainedByDetection) — phân tích cho vui để hiện mức độ
                     var detection = _detector.Analyze(result, result.Word);
                     vm.Detection = detection;
 
@@ -419,22 +563,20 @@ namespace WebFuzzer.UI
                     {
                         Interlocked.Increment(ref _vulnCount);
                         if (detection.Severity >= Severity.Likely)
-                            AppendTerminal($"[VULN] {detection.Summary} | Payload: {result.Word}");
+                            AppendTerminal($"[VULN] {detection.Summary} | Payload: {result.Payload} | URL: {result.Url}");
                     }
                 }
                 else if (result.IsRetainedByDetection)
                 {
-                    // Được detector cứu (retained) -> phân tích lấy result nếu trên UI
                     if (_detector.IsReady)
                     {
                         var detection = _detector.Analyze(result, result.Word);
                         vm.Detection = detection;
                     }
                     
-                    // Nếu đã được VERIFIED bởi engine (V3), đồng bộ trạng thái
                     if (result.ConfirmationSummary != null && result.ConfirmationSummary.Contains("[VERIFIED]"))
                     {
-                        AppendTerminal($"[✅ VERIFIED] {result.DetectedVulnType} found: {result.Word}");
+                        AppendTerminal($"[✅ VERIFIED] {result.DetectedVulnType} | Payload: {result.Payload} | URL: {result.Url}");
                         Interlocked.Increment(ref _confirmedCount);
                     }
 
@@ -465,10 +607,10 @@ namespace WebFuzzer.UI
         {
             Dispatcher.Invoke(() =>
             {
-                var now      = DateTime.Now;
-                var elapsed  = (now - _lastStatTime).TotalSeconds;
-                var delta    = _requestCount - _lastRequestCount;
-                var rps      = elapsed > 0 ? (int)(delta / elapsed) : 0;
+                var now     = DateTime.Now;
+                var elapsed = (now - _lastStatTime).TotalSeconds;
+                var delta   = _requestCount - _lastRequestCount;
+                var rps     = elapsed > 0 ? (int)(delta / elapsed) : 0;
 
                 _lastRequestCount = _requestCount;
                 _lastStatTime     = now;
@@ -483,7 +625,11 @@ namespace WebFuzzer.UI
         }
 
         // ── Build FuzzOptions from UI ────────────────────────────────────────
-        private FuzzOptions BuildOptions()
+
+        /// <summary>
+        /// ✅ FIX: Nhận idorWordlistPath để override wordlist khi IDOR mode bật
+        /// </summary>
+        private FuzzOptions BuildOptions(string? idorWordlistPath = null)
         {
             static HashSet<int>? ParseIntSet(string? raw) =>
                 string.IsNullOrWhiteSpace(raw) ? null :
@@ -491,13 +637,15 @@ namespace WebFuzzer.UI
                    .Select(s => int.Parse(s.Trim()))
                    .ToHashSet();
 
-            var method = (CmbMethod.SelectedItem as System.Windows.Controls.ComboBoxItem)
-                         ?.Content?.ToString() ?? "GET";
+            var method = (CmbMethod.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "GET";
+
+            var wordlist = idorWordlistPath
+                        ?? ResolveWordlistPath(TxtWordlist.Text.Trim());
 
             return new FuzzOptions
             {
                 Url            = TxtUrl.Text.Trim(),
-                Wordlist       = ResolveWordlistPath(TxtWordlist.Text.Trim()),
+                Wordlist       = wordlist,
                 Method         = method,
                 MatchCodes     = string.IsNullOrWhiteSpace(TxtMatchCodes.Text)
                                  ? new[] { "200", "301", "302" }
@@ -542,31 +690,39 @@ namespace WebFuzzer.UI
             var urlHasFuzz    = !string.IsNullOrWhiteSpace(TxtUrl.Text)    && TxtUrl.Text.Contains("FUZZ");
             var dataHasFuzz   = !string.IsNullOrWhiteSpace(TxtData.Text)   && TxtData.Text.Contains("FUZZ");
             var headerHasFuzz = !string.IsNullOrWhiteSpace(TxtHeader.Text) && TxtHeader.Text.Contains("FUZZ");
+            bool idorMode     = ChkIdorMode.IsChecked == true;
 
             if (string.IsNullOrWhiteSpace(TxtUrl.Text))
             {
                 System.Windows.MessageBox.Show("URL cannot be empty.",
-                    "Validation Error", System.Windows.MessageBoxButton.OK, MessageBoxImage.Warning);
+                    "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
 
-            if (!urlHasFuzz && !dataHasFuzz && !headerHasFuzz)
+            // ✅ FIX: IDOR mode không cần FUZZ trong URL — auto-detect sẽ xử lý
+            if (!idorMode && !urlHasFuzz && !dataHasFuzz && !headerHasFuzz)
             {
                 System.Windows.MessageBox.Show(
                     "FUZZ placeholder must appear in at least one of:\n\n" +
                     "  • URL:           https://example.com/FUZZ\n" +
                     "  • POST Data:     {\"password\":\"FUZZ\"}\n" +
-                    "  • Custom Header: User-Agent: FUZZ",
-                    "Validation Error", System.Windows.MessageBoxButton.OK, MessageBoxImage.Warning);
+                    "  • Custom Header: User-Agent: FUZZ\n\n" +
+                    "Or enable IDOR Mode to auto-detect ID in URL.",
+                    "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
-            var wordlistPath = ResolveWordlistPath(TxtWordlist.Text.Trim());
-            if (string.IsNullOrWhiteSpace(wordlistPath) || !File.Exists(wordlistPath))
+
+            // IDOR mode: skip wordlist check (sẽ dùng temp file)
+            if (!idorMode)
             {
-                System.Windows.MessageBox.Show(
-                    $"Wordlist file not found:\n{wordlistPath}\n\nThư mục app: {AppContext.BaseDirectory}",
-                    "Validation Error", System.Windows.MessageBoxButton.OK, MessageBoxImage.Warning);
-                return false;
+                var wordlistPath = ResolveWordlistPath(TxtWordlist.Text.Trim());
+                if (string.IsNullOrWhiteSpace(wordlistPath) || !File.Exists(wordlistPath))
+                {
+                    System.Windows.MessageBox.Show(
+                        $"Wordlist file not found:\n{wordlistPath}\n\nThư mục app: {AppContext.BaseDirectory}",
+                        "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return false;
+                }
             }
             return true;
         }
@@ -581,7 +737,7 @@ namespace WebFuzzer.UI
                 ? new SolidColorBrush(Color.FromRgb(0x3F, 0xB9, 0x50))
                 : new SolidColorBrush(Color.FromRgb(0x7D, 0x85, 0x90));
 
-            TxtStatus.Text      = running ? "RUNNING" : "IDLE";
+            TxtStatus.Text       = running ? "RUNNING" : "IDLE";
             TxtStatus.Foreground = running
                 ? new SolidColorBrush(Color.FromRgb(0x3F, 0xB9, 0x50))
                 : new SolidColorBrush(Color.FromRgb(0x7D, 0x85, 0x90));
@@ -604,8 +760,8 @@ namespace WebFuzzer.UI
         {
             var dlg = new OpenFileDialog
             {
-                Filter = "Text Files (*.txt)|*.txt|All Files (*.*)|*.*",
-                Title  = "Select Wordlist"
+                Filter = "Text Files (*.txt)|*.txt|JSON Files (*.json)|*.json|All Files (*.*)|*.*",
+                Title  = "Select Wordlist / SQL Payload File"
             };
             if (dlg.ShowDialog() == true)
                 TxtWordlist.Text = dlg.FileName;
@@ -629,10 +785,12 @@ namespace WebFuzzer.UI
             var dlg = new SaveFileDialog { Filter = "JSON (*.json)|*.json", FileName = "results.json" };
             if (dlg.ShowDialog() != true) return;
 
-            // ✅ Export cả detection result
             var export = _results.Select(vm => new
             {
-                vm.StatusCode, vm.Word, vm.Url,
+                vm.StatusCode,
+                vm.Word,
+                Payload = vm.Payload,       // ✅ Export payload SQL
+                Url     = vm.Url,           // ✅ Export URL đầy đủ
                 vm.ContentLength, vm.WordCount, vm.LineCount, vm.DurationMs,
                 Detection = new
                 {
@@ -659,11 +817,11 @@ namespace WebFuzzer.UI
             var dlg = new SaveFileDialog { Filter = "CSV (*.csv)|*.csv", FileName = "results.csv" };
             if (dlg.ShowDialog() != true) return;
 
-            // ✅ MỚI: thêm cột Severity và VulnType vào CSV
-            var sb = new StringBuilder("StatusCode,Word,Url,Size,Words,Lines,DurationMs,Severity,VulnType,ConfidenceScore\n");
+            // ✅ Thêm cột Payload và URL
+            var sb = new StringBuilder("StatusCode,Payload,Url,Size,Words,Lines,DurationMs,Severity,VulnType,ConfidenceScore\n");
             foreach (var vm in _results)
             {
-                sb.AppendLine($"{vm.StatusCode},{EscapeCsv(vm.Word)},{EscapeCsv(vm.Url)}," +
+                sb.AppendLine($"{vm.StatusCode},{EscapeCsv(vm.Payload)},{EscapeCsv(vm.Url)}," +
                               $"{vm.ContentLength},{vm.WordCount},{vm.LineCount},{vm.DurationMs}," +
                               $"{vm.Detection.Severity},{vm.Detection.PrimaryVulnType},{vm.Detection.ConfidenceScore}");
             }
@@ -684,6 +842,46 @@ namespace WebFuzzer.UI
         {
             Clipboard.SetText(TxtCommandPreview.Text);
             AppendTerminal("[WebFuzzer] Command copied to clipboard.");
+        }
+
+        // ── Context Menu Handlers ────────────────────────────────────────────
+
+        private void CopyPayload_Click(object sender, RoutedEventArgs e)
+        {
+            if (ResultsGrid.SelectedItem is FuzzResultViewModel vm)
+            {
+                Clipboard.SetText(vm.Payload);
+                AppendTerminal($"[Copied] Payload: {vm.Payload}");
+            }
+        }
+
+        private void CopyUrl_Click(object sender, RoutedEventArgs e)
+        {
+            if (ResultsGrid.SelectedItem is FuzzResultViewModel vm)
+            {
+                Clipboard.SetText(vm.Url);
+                AppendTerminal($"[Copied] URL: {vm.Url}");
+            }
+        }
+
+        private void OpenUrl_Click(object sender, RoutedEventArgs e)
+        {
+            if (ResultsGrid.SelectedItem is FuzzResultViewModel vm && !string.IsNullOrEmpty(vm.Url))
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = vm.Url,
+                        UseShellExecute = true
+                    });
+                    AppendTerminal($"[Browser] Opening: {vm.Url}");
+                }
+                catch (Exception ex)
+                {
+                    AppendTerminal($"[ERROR] Cannot open URL: {ex.Message}");
+                }
+            }
         }
     }
 }
