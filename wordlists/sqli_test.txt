@@ -1,0 +1,10 @@
+admin
+test
+' OR 1=1 --
+" OR ""="
+1' UNION SELECT NULL--
+normal_search
+hello
+' AND 1=1 --
+1; DROP TABLE users--
+product123

@@ -204,8 +204,14 @@ public partial class FuzzEngine
         HttpClient httpClient,
         CancellationToken ct)
     {
-        await foreach (var word in reader.ReadAllAsync(ct))
+        await foreach (var rawWord in reader.ReadAllAsync(ct))
         {
+            string word = rawWord;
+            if (word.Contains("__TIME__"))
+            {
+                word = word.Replace("__TIME__", "3");
+            }
+
             try
             {
                 var request   = RequestBuilder.Build(_options, word);
@@ -223,11 +229,17 @@ public partial class FuzzEngine
                              || !string.IsNullOrEmpty(_options.FilterRegex)
                              || _options.Verbose;
 
+                // Tính InjectedBody nếu có POST data chứa FUZZ
+                string? injectedBody = null;
+                if (!string.IsNullOrEmpty(_options.Data) && _options.Data.Contains("FUZZ"))
+                    injectedBody = _options.Data.Replace("FUZZ", word);
+
                 var result = new FuzzResult
                 {
                     Word          = word,
                     Payload       = word,
                     Url           = request.RequestUri!.ToString(),
+                    InjectedBody  = injectedBody,
                     StatusCode    = (int)response.StatusCode,
                     ContentLength = body.Length,
                     WordCount     = CountWords(body),
@@ -258,7 +270,7 @@ public partial class FuzzEngine
                     bool hasAuth = (_options.Headers != null && _options.Headers.Any(h => h.Trim().StartsWith("Authorization", StringComparison.OrdinalIgnoreCase))) ||
                                   !string.IsNullOrEmpty(_options.Cookie);
 
-                    var detection = _detector.Analyze(result, word, hasAuth);
+                    var detection = _detector.Analyze(result, word, hasAuth, _options.Method);
                     
                     result.DetectionScore = detection.ConfidenceScore;
                     result.DetectedVulnType = detection.PrimaryVulnType.ToString();
@@ -273,6 +285,20 @@ public partial class FuzzEngine
                 {
                     retainedByDetection = true;
                     result.IsRetainedByDetection = true;
+                    result.MatchReason = $"DetectionBypass (Score:{result.DetectionScore}, {result.DetectedVulnType})";
+                }
+                else if (filterEval.IsPassedBySoftRule)
+                {
+                    result.MatchReason = filterEval.MatchReason switch
+                    {
+                        MatchReason.ByStatusCode => "Status",
+                        MatchReason.ByRegex => "Regex",
+                        MatchReason.BySize => "Size",
+                        MatchReason.ByWords => "Words",
+                        MatchReason.ByLines => "Lines",
+                        MatchReason.ByDetection => "Detection",
+                        _ => "None"
+                    };
                 }
 
                 if (filterEval.IsPassedBySoftRule || retainedByDetection)

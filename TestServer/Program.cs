@@ -43,6 +43,47 @@ class Program
                 ctx.Response.StatusCode = 200;
                 responseString = "DB_HOST=127.0.0.1\nDB_USER=root\nDB_PASSWORD=supersecret\n";
             }
+            // SQLi test endpoint (POST body fuzzing)
+            else if (path == "/api/search")
+            {
+                string bodyInput = "";
+                using (var reader = new System.IO.StreamReader(ctx.Request.InputStream)) bodyInput = await reader.ReadToEndAsync();
+                ctx.Response.ContentType = "application/json";
+                
+                if (bodyInput.Contains("'") || bodyInput.Contains("OR 1=1") || bodyInput.Contains("UNION"))
+                {
+                    ctx.Response.StatusCode = 500;
+                    responseString = "{\"error\": \"SQLITE_ERROR: unrecognized token: near \\\"'\\\": syntax error\", \"query\": \"SELECT * FROM products WHERE name = '" + bodyInput.Replace("\"", "\\\"") + "'\"}";
+                }
+                else
+                {
+                    ctx.Response.StatusCode = 200;
+                    responseString = "{\"results\": [], \"count\": 0}";
+                }
+            }
+            // IDOR test endpoint
+            else if (path.StartsWith("/api/users/") && path.Length > 11)
+            {
+                var idStr = path.Substring(11);
+                ctx.Response.ContentType = "application/json";
+                if (int.TryParse(idStr, out int id) && id >= 1 && id <= 5)
+                {
+                    ctx.Response.StatusCode = 200;
+                    var ts = DateTime.UtcNow.ToString("o"); // dynamic timestamp
+                    responseString = id switch
+                    {
+                        1 => $"{{\"id\":1,\"email\":\"admin@test.com\",\"role\":\"admin\",\"updatedAt\":\"{ts}\"}}",
+                        2 => $"{{\"id\":2,\"email\":\"user2@test.com\",\"role\":\"user\",\"updatedAt\":\"{ts}\"}}",
+                        3 => $"{{\"id\":3,\"email\":\"user3@test.com\",\"role\":\"user\",\"updatedAt\":\"{ts}\"}}",
+                        _ => $"{{\"id\":{id},\"email\":\"user{id}@test.com\",\"role\":\"user\",\"updatedAt\":\"{ts}\"}}"
+                    };
+                }
+                else
+                {
+                    ctx.Response.StatusCode = 404;
+                    responseString = "{\"error\":\"User not found\"}";
+                }
+            }
             else
             {
                 ctx.Response.StatusCode = 200;

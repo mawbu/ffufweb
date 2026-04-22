@@ -5,6 +5,8 @@ public class FuzzResult
     public string Word { get; set; } = "";
     public string Payload { get; set; } = "";  // alias / synonym for Word
     public string Url { get; set; } = "";
+    public string? InjectedBody { get; set; }  // Full POST body sau khi thay FUZZ (nếu có)
+    public string? MatchReason { get; set; }   // Lý do result được giữ/filter (Bug 3)
     public int StatusCode { get; set; }
     public int ContentLength { get; set; }
     public int WordCount { get; set; }

@@ -34,6 +34,7 @@ public class ResponseFilter
 
     /// <summary>
     /// Đánh giá FuzzResult theo 2 nhóm phân loại: Strict Rule (cứng) và Soft Rule (mềm).
+    /// MatchReason được set để UI biết chính xác lý do result được hiển thị.
     /// </summary>
     public FilterEvalResult Evaluate(FuzzResult result)
     {
@@ -41,8 +42,6 @@ public class ResponseFilter
 
         // ==========================================
         // KHỐI 1: STRICT RULES (LUẬT CỨNG)
-        // Nếu vi phạm khối này, result KHÔNG ĐƯỢC PHÉP báo cáo
-        // (Bao gồm cả việc Detection cũng không được quyền cứu)
         // ==========================================
 
         // 1. FilterRegex — loại bỏ tuyệt đối nếu body khớp (-fr)
@@ -50,64 +49,88 @@ public class ResponseFilter
         {
             try
             {
-                if (_filterRegex.IsMatch(body)) return new FilterEvalResult { IsBlockedByStrictRule = true };
+                if (_filterRegex.IsMatch(body))
+                    return new FilterEvalResult { IsBlockedByStrictRule = true };
             }
-            catch (RegexMatchTimeoutException) { /* timeout → bỏ qua */ }
+            catch (RegexMatchTimeoutException) { }
         }
 
-        // 2. Filter status code — loại bỏ nếu user chỉ định (-fc)
+        // 2. Filter status code (-fc)
         if (_filterCodes?.Contains(result.StatusCode) == true)
-        {
             return new FilterEvalResult { IsBlockedByStrictRule = true };
-        }
 
-        // 3. MatchRegex — nếu có cờ -mr, body PHẢI chứa pattern
+        // 3. MatchRegex (-mr): body PHẢI chứa pattern — strict rule
         bool regexMatched = false;
         if (_matchRegex != null)
         {
             try
             {
-                if (!_matchRegex.IsMatch(body)) 
-                {
-                    // Body không chứa Regex -> vi phạm Strict Rule
+                if (!_matchRegex.IsMatch(body))
                     return new FilterEvalResult { IsBlockedByStrictRule = true };
-                }
-                regexMatched = true; // ✅ Mạch chứa Regex -> Bypass Soft filter về size/words
+
+                regexMatched = true;
             }
-            catch (RegexMatchTimeoutException) 
-            { 
-                return new FilterEvalResult { IsBlockedByStrictRule = true }; 
+            catch (RegexMatchTimeoutException)
+            {
+                return new FilterEvalResult { IsBlockedByStrictRule = true };
             }
         }
 
-        // Nếu vượt qua khối 1, nó không bị cấm
-        var eval = new FilterEvalResult { IsBlockedByStrictRule = false, IsPassedBySoftRule = true };
+        // Nếu regex khớp → pass ngay với ByRegex, bỏ qua soft rules về size/words
+        if (regexMatched)
+        {
+            return new FilterEvalResult
+            {
+                IsBlockedByStrictRule = false,
+                IsPassedBySoftRule    = true,
+                MatchReason           = MatchReason.ByRegex
+            };
+        }
 
         // ==========================================
         // KHỐI 2: SOFT RULES (LUẬT MỀM)
-        // Nếu vi phạm, mặc định sẽ ẩn khỏi kết quả (IsPassedBySoftRule = false)
-        // NHƯNG Detection có quyền can thiệp và kéo nó lại (RetainedByDetection)
+        // Detection có quyền override IsPassedBySoftRule = false
         // ==========================================
 
-        // 4. Match status codes mặc định (-mc mặc định 200, 301, 302 v.v)
-        if (_matchCodes != null && !_matchCodes.Contains(result.StatusCode)) 
+        // 4. Match status codes (-mc)
+        if (_matchCodes != null && !_matchCodes.Contains(result.StatusCode))
         {
-            eval = new FilterEvalResult { IsBlockedByStrictRule = false, IsPassedBySoftRule = false };
+            return new FilterEvalResult
+            {
+                IsBlockedByStrictRule = false,
+                IsPassedBySoftRule    = false,
+                MatchReason           = MatchReason.None
+            };
         }
 
-        // 5. Size/Words/Lines filter (kế thừa từ Auto-Calibration hoặc cờ filter thông thường)
-        // Chỉ áp dụng khi KHÔNG có MatchRegex
-        if (!regexMatched && eval.IsPassedBySoftRule)
-        {
-            if (_options.FilterSize?.Contains(result.ContentLength) == true) eval = new FilterEvalResult { IsPassedBySoftRule = false };
-            else if (_options.FilterWords?.Contains(result.WordCount) == true) eval = new FilterEvalResult { IsPassedBySoftRule = false };
-            else if (_options.FilterLines?.Contains(result.LineCount) == true) eval = new FilterEvalResult { IsPassedBySoftRule = false };
-            else if (_options.MatchSize != null && !_options.MatchSize.Contains(result.ContentLength)) eval = new FilterEvalResult { IsPassedBySoftRule = false };
-            else if (_options.MatchWords != null && !_options.MatchWords.Contains(result.WordCount)) eval = new FilterEvalResult { IsPassedBySoftRule = false };
-            else if (_options.MatchLines != null && !_options.MatchLines.Contains(result.LineCount)) eval = new FilterEvalResult { IsPassedBySoftRule = false };
-        }
+        // 5. Size/Words/Lines filter (Auto-Calibration hoặc cờ filter thường)
+        if (_options.FilterSize?.Contains(result.ContentLength) == true)
+            return new FilterEvalResult { IsBlockedByStrictRule = false, IsPassedBySoftRule = false };
+        if (_options.FilterWords?.Contains(result.WordCount) == true)
+            return new FilterEvalResult { IsBlockedByStrictRule = false, IsPassedBySoftRule = false };
+        if (_options.FilterLines?.Contains(result.LineCount) == true)
+            return new FilterEvalResult { IsBlockedByStrictRule = false, IsPassedBySoftRule = false };
 
-        return eval;
+        // 6. Match size/words/lines (-ms/-mw/-ml)
+        if (_options.MatchSize != null && !_options.MatchSize.Contains(result.ContentLength))
+            return new FilterEvalResult { IsBlockedByStrictRule = false, IsPassedBySoftRule = false, MatchReason = MatchReason.BySize };
+        if (_options.MatchWords != null && !_options.MatchWords.Contains(result.WordCount))
+            return new FilterEvalResult { IsBlockedByStrictRule = false, IsPassedBySoftRule = false, MatchReason = MatchReason.ByWords };
+        if (_options.MatchLines != null && !_options.MatchLines.Contains(result.LineCount))
+            return new FilterEvalResult { IsBlockedByStrictRule = false, IsPassedBySoftRule = false, MatchReason = MatchReason.ByLines };
+
+        // Xác định MatchReason cụ thể cho result pass
+        var reason = MatchReason.ByStatusCode;
+        if (_options.MatchSize  != null && _options.MatchSize.Contains(result.ContentLength))  reason = MatchReason.BySize;
+        if (_options.MatchWords != null && _options.MatchWords.Contains(result.WordCount))      reason = MatchReason.ByWords;
+        if (_options.MatchLines != null && _options.MatchLines.Contains(result.LineCount))      reason = MatchReason.ByLines;
+
+        return new FilterEvalResult
+        {
+            IsBlockedByStrictRule = false,
+            IsPassedBySoftRule    = true,
+            MatchReason           = reason
+        };
     }
 
     public bool NeedsResponseBody =>

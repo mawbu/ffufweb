@@ -22,6 +22,7 @@ public partial class FuzzEngine
 
     // Detection — được inject từ UI; nếu null = detection tắt
     private readonly VulnerabilityDetector? _uiDetector;
+    private readonly VulnerabilityConfirmer? _uiConfirmer;
     private readonly Severity _uiBypassThreshold;
 
     /// <summary>
@@ -41,6 +42,7 @@ public partial class FuzzEngine
         _onProgress     = onProgress;
         _onTerminalLine = onTerminalLine;
         _uiDetector     = detector;
+        _uiConfirmer    = detector != null ? new VulnerabilityConfirmer(detector) : null;
         _uiBypassThreshold = options.DetectionBypassThreshold;
     }
 
@@ -71,9 +73,19 @@ public partial class FuzzEngine
 
         var producer = Task.Run(async () =>
         {
-            await foreach (var word in WordlistReader.ReadAsync(_options.Wordlist, ct))
-                await channel.Writer.WriteAsync(word, ct);
-            channel.Writer.Complete();
+            try
+            {
+                await foreach (var word in WordlistReader.ReadAsync(_options.Wordlist, ct))
+                    await channel.Writer.WriteAsync(word, ct);
+            }
+            catch (Exception ex) when (!ct.IsCancellationRequested)
+            {
+                _onTerminalLine?.Invoke($"[ERROR] Failed to read wordlist: {ex.Message}");
+            }
+            finally
+            {
+                channel.Writer.Complete();
+            }
         }, ct);
 
         var workers = Enumerable.Range(0, _options.Threads)
@@ -94,8 +106,14 @@ public partial class FuzzEngine
         HttpClient httpClient,
         CancellationToken ct)
     {
-        await foreach (var word in reader.ReadAllAsync(ct))
+        await foreach (var rawWord in reader.ReadAllAsync(ct))
         {
+            string word = rawWord;
+            if (word.Contains("__TIME__"))
+            {
+                word = word.Replace("__TIME__", "3");
+            }
+
             try
             {
                 var request   = RequestBuilder.Build(_options, word);
@@ -106,17 +124,25 @@ public partial class FuzzEngine
 
                 var body = await response.Content.ReadAsStringAsync(ct);
 
-                // needsBody: thêm EnableDetection — detector cần body trước khi quyết định bypass
                 var needsBody = _options.EnableDetection
                              || !string.IsNullOrEmpty(_options.MatchRegex)
                              || !string.IsNullOrEmpty(_options.FilterRegex)
                              || _options.Verbose;
 
+                // ✅ FIX: Lưu URL thực tế (đã có payload nhúng vào) từ request đã build
+                var actualUrl = request.RequestUri?.ToString() ?? _options.Url;
+
+                // Tính InjectedBody nếu có POST data chứa FUZZ
+                string? injectedBody = null;
+                if (!string.IsNullOrEmpty(_options.Data) && _options.Data.Contains("FUZZ"))
+                    injectedBody = _options.Data.Replace("FUZZ", word);
+
                 var result = new FuzzResult
                 {
                     Word          = word,
                     Payload       = word,
-                    Url           = request.RequestUri!.ToString(),
+                    Url           = actualUrl,
+                    InjectedBody  = injectedBody,
                     StatusCode    = (int)response.StatusCode,
                     ContentLength = body.Length,
                     WordCount     = CountWords(body),
@@ -139,37 +165,87 @@ public partial class FuzzEngine
 
                 // ── YÊU CẦU 1: Kiểm tra Strict Filter ─────────────────────────────
                 var filterEval = _filter.Evaluate(result);
-                if (filterEval.IsBlockedByStrictRule) continue; 
+                if (filterEval.IsBlockedByStrictRule) continue;
 
-                // ── YÊU CẦU 2: Chạy Detection (chỉ chạy nếu không bị strict block) ─────
+                // ── YÊU CẦU 2: Chạy Detection ─────────────────────────────────────
                 bool isHighSeverity = false;
                 if (_options.EnableDetection && _uiDetector?.IsReady == true)
                 {
                     if (result.ResponseBody == null) result.ResponseBody = body;
-                    var detection = _uiDetector.Analyze(result, word);
+                    
+                    // ✅ FIX: Pass hasAuth to detector so IDOR context is correct
+                    bool hasAuth = (_options.Headers != null && _options.Headers.Any(h => h.Trim().StartsWith("Authorization", StringComparison.OrdinalIgnoreCase))) ||
+                                  !string.IsNullOrEmpty(_options.Cookie);
 
-                    result.DetectionScore = detection.ConfidenceScore;
+                    var detection = _uiDetector.Analyze(result, word, hasAuth, _options.Method);
+
+                    result.DetectionScore   = detection.ConfidenceScore;
                     result.DetectedVulnType = detection.PrimaryVulnType.ToString();
                     result.DetectionSummary = detection.Summary;
 
                     isHighSeverity = detection.Severity >= _uiBypassThreshold;
                 }
 
-                // ── YÊU CẦU 3: Quyết định Report ────────────────────────────────
+                // ── YÊU CẦU 3: Quyết định Report ─────────────────────────────────
                 bool retainedByDetection = false;
                 if (!filterEval.IsPassedBySoftRule && isHighSeverity)
                 {
                     retainedByDetection = true;
                     result.IsRetainedByDetection = true;
+                    result.MatchReason = $"DetectionBypass (Score:{result.DetectionScore}, {result.DetectedVulnType})";
+                }
+                else if (filterEval.IsPassedBySoftRule)
+                {
+                    result.MatchReason = filterEval.MatchReason switch
+                    {
+                        MatchReason.ByStatusCode => "Status",
+                        MatchReason.ByRegex => "Regex",
+                        MatchReason.BySize => "Size",
+                        MatchReason.ByWords => "Words",
+                        MatchReason.ByLines => "Lines",
+                        MatchReason.ByDetection => "Detection",
+                        _ => "None"
+                    };
                 }
 
                 if (filterEval.IsPassedBySoftRule || retainedByDetection)
                 {
+                    // ── [NEW] YÊU CẦU 4: Auto-Retest Confirmation ────────────────
+                    if (_uiConfirmer != null && result.DetectionScore >= 40)
+                    {
+                        var confirmation = await _uiConfirmer.VerifyAsync(result, _options, httpClient);
+                        result.ConfirmationSummary = confirmation.Reason;
+                        
+                        if (confirmation.IsConfirmed)
+                        {
+                            Interlocked.Increment(ref _confirmedCount);
+                            result.DetectionSummary = "✅ [VERIFIED] " + result.DetectionSummary;
+                        }
+                        else
+                        {
+                            // Nếu không xác thực được, hạ mức độ tin cậy
+                            result.DetectionSummary = "⚠️ [UNVERIFIED] " + result.DetectionSummary;
+                            result.DetectionScore = 40; // Downgrade score since verification failed
+                            if (result.MatchReason.StartsWith("DetectionBypass") && !_options.Silent)
+                            {
+                                // Remove Bypass badge if downgraded
+                                result.MatchReason = "Downgraded";
+                                result.IsRetainedByDetection = false;
+                            }
+                        }
+                    }
+
                     Interlocked.Increment(ref _matchCount);
                     if (retainedByDetection) Interlocked.Increment(ref _bypassCount);
                     _onResult?.Invoke(result);        // → UI DataGrid
+
+                    // ✅ FIX: Log cả Payload và URL thực tế
                     _onTerminalLine?.Invoke(
-                        $"{(retainedByDetection ? "🔥 VULN " : "✅ MATCH ")} [{result.StatusCode}] {result.Word,-40} Size:{result.ContentLength,-8} Words:{result.WordCount,-6} {result.Url}");
+                        $"{(retainedByDetection ? "🔥 VULN " : "✅ MATCH ")} " +
+                        $"[{result.StatusCode}] " +
+                        $"Payload: {result.Payload,-35} " +
+                        $"Size:{result.ContentLength,-8} " +
+                        $"URL: {result.Url}");
                 }
             }
             catch (OperationCanceledException) { break; }
@@ -200,7 +276,6 @@ public partial class FuzzEngine
                 probeWordCounts.Add(CountWords(body));
                 probeLines.Add(CountLines(body));
 
-                // Guard: chỉ dùng 2xx cho baseline — 500 sẽ skew timing/size
                 int statusCode = (int)response.StatusCode;
                 if (statusCode >= 200 && statusCode < 300)
                 {
@@ -237,7 +312,6 @@ public partial class FuzzEngine
             _onTerminalLine?.Invoke($"[Calibration] Auto-filtering Lines: {probeLines[0]}");
         }
 
-        // Setup baseline cho detector (chỉ dùng 2xx — 5xx sẽ skew baseline)
         if (_uiDetector != null && probeResponses.Count > 0)
         {
             _uiDetector.SetBaseline(probeResponses);

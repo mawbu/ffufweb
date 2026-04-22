@@ -92,15 +92,28 @@ public class ConsoleReporter : IFuzzReporter
             bool isVulnerable = result.DetectionScore >= 40 || result.IsRetainedByDetection;
             string badge = isVulnerable ? $"{Bold}{Red}[🔥 VULN] [Score: {result.DetectionScore}]{Reset} " : "";
             
+            // Hiển thị MatchReason thay vì status đơn thuần
+            string reasonTag = !string.IsNullOrEmpty(result.MatchReason) 
+                ? $"{Magenta}[{result.MatchReason}]{Reset} " 
+                : "";
+
             Console.WriteLine(
                 $"{badge}{statusColor}[Status: {result.StatusCode,-3}]{Reset} " +
                 $"{Bold}{result.Word,-40}{Reset} " +
                 $"{Gray}[Size: {result.ContentLength,-8}]{Reset} " +
-                $"{Gray}[Words: {result.WordCount,-6}]{Reset} " +
-                $"{Gray}[Lines: {result.LineCount,-5}]{Reset} " +
+                $"{reasonTag}" +
                 $"{Gray}[{result.DurationMs}ms]{Reset} " +
                 $":: {Cyan}{result.Url}{Reset}"
             );
+
+            // Hiển thị InjectedBody nếu có (khi FUZZ nằm trong POST body)
+            if (!string.IsNullOrEmpty(result.InjectedBody))
+            {
+                var bodyPreview = result.InjectedBody.Length > 120
+                    ? result.InjectedBody[..120] + "..."
+                    : result.InjectedBody;
+                Console.WriteLine($"{Gray}    ↳ Body: {bodyPreview}{Reset}");
+            }
 
             // ✅ Verbose: in đoạn body liên quan đến regex match
             if (_options.Verbose && !string.IsNullOrEmpty(result.ResponseBody))
@@ -108,7 +121,7 @@ public class ConsoleReporter : IFuzzReporter
                 var preview = result.ResponseBody.Length > 300
                     ? result.ResponseBody[..300] + "..."
                     : result.ResponseBody;
-                Console.WriteLine($"{Gray}    ↳ {preview}{Reset}");
+                Console.WriteLine($"{Gray}    ↳ Response: {preview}{Reset}");
             }
         }
     }

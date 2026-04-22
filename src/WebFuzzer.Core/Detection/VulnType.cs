@@ -7,6 +7,8 @@ public enum VulnType
 {
     None,
     SQLi,
+    SQLi_TimeBased,
+    SQLi_Boolean,
     XSS,
     PathTraversal,
     InfoDisclosure,
