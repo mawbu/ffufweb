@@ -1,4 +1,4 @@
-﻿<ui:FluentWindow x:Class="WebFuzzer.UI.MainWindow"
+<ui:FluentWindow x:Class="WebFuzzer.UI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -212,6 +212,24 @@
                                   Margin="0,0,0,16"
                                   ToolTip="Gửi thêm request đối chứng để loại bỏ báo động giả (SQLi, IDOR)"/>
 
+                        <Separator Margin="0,0,0,16"/>
+
+                        <!-- 🧬 GRAY-BOX AFL -->
+                        <TextBlock Text="🧬 GRAY-BOX AFL" Style="{StaticResource SectionHeader}"/>
+                        <CheckBox x:Name="ChkGrayBox" Content="Enable Gray-Box Mode" Margin="0,0,0,8"
+                                  ToolTip="AFL-inspired evolutionary fuzzing: coverage-guided mutation loop"/>
+                        <Grid Margin="0,0,0,16"
+                              IsEnabled="{Binding IsChecked, ElementName=ChkGrayBox}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Max Mutation Depth" Style="{StaticResource FieldLabel}"/>
+                                <ui:TextBox x:Name="TxtMaxDepth" Text="5"
+                                           ToolTip="Giới hạn số thế hệ mutation (seed→gen1→gen2→...)"/>
+                            </StackPanel>
+                        </Grid>
+
                         <TextBlock Text="Proxy" Style="{StaticResource FieldLabel}"/>
                         <ui:TextBox x:Name="TxtProxy" PlaceholderText="http://127.0.0.1:8080" Margin="0,0,0,12"/>
 
@@ -298,6 +316,13 @@
                         
                         <TextBlock Text="Req/s:" Opacity="0.6" Margin="0,0,6,0" VerticalAlignment="Center"/>
                         <TextBlock x:Name="TxtStatRps" Text="0" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource SystemFillColorCautionBrush}" VerticalAlignment="Center"/>
+
+                        <!-- AFL Stats -->
+                        <TextBlock x:Name="TxtAflStatsLabel" Text="|" Opacity="0.3" Margin="12,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        <TextBlock x:Name="TxtAflCorpusLabel" Text="Corpus:" Opacity="0.6" Margin="0,0,6,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        <TextBlock x:Name="TxtStatCorpus" Text="0" FontWeight="Bold" FontSize="14" Foreground="#FF9B59B6" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        <TextBlock x:Name="TxtAflFpLabel" Text="FP:" Opacity="0.6" Margin="12,0,6,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        <TextBlock x:Name="TxtStatFingerprints" Text="0" FontWeight="Bold" FontSize="14" Foreground="#FF1ABC9C" VerticalAlignment="Center" Visibility="Collapsed"/>
                     </StackPanel>
 
                     <!-- Status -->
@@ -503,6 +528,23 @@
                                                  <Setter Property="Foreground" Value="#FFB0C4DE"/>
                                                  <Setter Property="FontSize" Value="11"/>
                                                  <Setter Property="FontFamily" Value="Consolas"/>
+                                             </Style>
+                                         </DataGridTextColumn.ElementStyle>
+                                     </DataGridTextColumn>
+
+                                     <!-- 🧬 Generation Column (Gray-Box AFL) -->
+                                     <DataGridTextColumn Header="Gen" Binding="{Binding MutationLabel}" Width="80">
+                                         <DataGridTextColumn.ElementStyle>
+                                             <Style TargetType="TextBlock">
+                                                 <Setter Property="VerticalAlignment" Value="Center"/>
+                                                 <Setter Property="FontSize" Value="11"/>
+                                                 <Setter Property="ToolTip" Value="{Binding ParentPayload}"/>
+                                                 <Style.Triggers>
+                                                     <DataTrigger Binding="{Binding IsFromMutation}" Value="True">
+                                                         <Setter Property="Foreground" Value="#FF9B59B6"/>
+                                                         <Setter Property="FontWeight" Value="SemiBold"/>
+                                                     </DataTrigger>
+                                                 </Style.Triggers>
                                              </Style>
                                          </DataGridTextColumn.ElementStyle>
                                      </DataGridTextColumn>

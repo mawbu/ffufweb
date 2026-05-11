@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using WebFuzzer.Core.AFL;
 using WebFuzzer.Core.Detection;
 using WebFuzzer.Core.Filters;
 using WebFuzzer.Core.Http;
@@ -17,7 +18,17 @@ public partial class FuzzEngine
     private long _requestCount = 0;
     private long _matchCount   = 0;
     private long _bypassCount  = 0; 
-    private long _confirmedCount = 0; 
+    private long _confirmedCount = 0;
+
+    // ── Gray-Box AFL Fields ──────────────────────────────────────────────────
+    private readonly BehavioralFingerprint? _fingerprint;
+    private readonly FuzzQueue? _fuzzQueue;
+    private readonly Mutator? _mutator;
+    private long _activeWorkers = 0;
+    private long _idleWorkers = 0; // ✅ MỚI: Track idle workers
+    private bool _isFinished = false;
+    private long _corpusCount = 0;
+    private long _mutationCount = 0;
 
     public FuzzEngine(FuzzOptions options)
     {
@@ -29,6 +40,13 @@ public partial class FuzzEngine
         {
             _detector = new VulnerabilityDetector();
             _confirmer = new VulnerabilityConfirmer(_detector);
+        }
+
+        if (options.EnableGrayBox)
+        {
+            _fingerprint = new BehavioralFingerprint();
+            _fuzzQueue = new FuzzQueue(options.MaxMutationDepth);
+            _mutator = new Mutator();
         }
     }
 
@@ -57,6 +75,9 @@ public partial class FuzzEngine
             _reporter.PrintSummary(_requestCount, _matchCount, DateTime.UtcNow - startTime);
         };
 
+        if (_options.EnableGrayBox && !_options.Silent)
+            Console.WriteLine($":: [AFL] Gray-Box mode ENABLED | MaxDepth={_options.MaxMutationDepth}");
+
         var producer = Task.Run(async () =>
         {
             try
@@ -68,7 +89,7 @@ public partial class FuzzEngine
             {
                 if (!_options.Silent)
                     Console.WriteLine($"\n[ERROR] Failed to read wordlist: {ex.Message}");
-                cts.Cancel(); // Cancel workers if input fails
+                cts.Cancel();
             }
             finally
             {
@@ -76,12 +97,29 @@ public partial class FuzzEngine
             }
         }, cts.Token);
 
-        var workers = Enumerable.Range(0, _options.Threads)
-            .Select(_ => ProcessWorker(channel.Reader, httpClient, cts.Token))
-            .ToArray();
+        Task[] workers;
+        if (_options.EnableGrayBox)
+        {
+            workers = Enumerable.Range(0, _options.Threads)
+                .Select(_ => ProcessWorkerGrayBox(channel.Reader, httpClient, cts.Token))
+                .ToArray();
+        }
+        else
+        {
+            workers = Enumerable.Range(0, _options.Threads)
+                .Select(_ => ProcessWorker(channel.Reader, httpClient, cts.Token))
+                .ToArray();
+        }
 
         await Task.WhenAll(workers.Append(producer));
         _reporter.PrintSummary(_requestCount, _matchCount, DateTime.UtcNow - startTime);
+
+        if (_options.EnableGrayBox && !_options.Silent)
+        {
+            Console.WriteLine($":: [AFL] Fingerprints: {_fingerprint!.TotalFingerprints} | Corpus: {_corpusCount} | Mutations: {_mutationCount}");
+            if (_fuzzQueue!.TotalDropped > 0)
+                Console.WriteLine($":: [AFL] Dropped (depth limit): {_fuzzQueue.TotalDropped}");
+        }
 
         if (_bypassCount > 0 && !_options.Silent)
             Console.WriteLine($":: [Detection] {_bypassCount} result(s) bypass filter due to detection score.");
@@ -336,6 +374,235 @@ public partial class FuzzEngine
                 if (_options.Verbose)
                     _reporter.PrintError(word, ex.Message);
             }
+        }
+    }
+
+    // ── Gray-Box Worker ───────────────────────────────────────────────────────
+    // Channel (initial seeds) TRƯỚC, FuzzQueue (mutations) SAU.
+    // Round-robin 3:1: cứ 3 seeds từ Channel thì xử lý 1 mutation từ FuzzQueue.
+    // Dừng khi: Channel completed + FuzzQueue empty + activeWorkers == 0.
+
+    private async Task ProcessWorkerGrayBox(
+        ChannelReader<string> reader,
+        HttpClient httpClient,
+        CancellationToken ct)
+    {
+        Interlocked.Increment(ref _activeWorkers);
+        int seedCounter = 0; // đếm số seed đã xử lý liên tiếp để round-robin
+
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                string? word = null;
+                int mutationGeneration = 0;
+                string? parentPayload = null;
+
+                // ── Priority: Channel (seeds) trước, FuzzQueue (mutations) sau ──
+                // Round-robin 3:1: mỗi 3 seeds thì thử 1 mutation
+                bool tryMutation = seedCounter >= 3 && _fuzzQueue != null && !_fuzzQueue.IsEmpty;
+
+                if (tryMutation && _fuzzQueue!.TryDequeue(out var entry) && entry != null)
+                {
+                    word = entry.Payload;
+                    mutationGeneration = entry.MutationGeneration;
+                    parentPayload = entry.ParentPayload;
+                    seedCounter = 0; // reset counter sau khi xử lý mutation
+                }
+                else if (reader.TryRead(out var channelWord))
+                {
+                    word = channelWord;
+                    seedCounter++;
+                }
+                else if (reader.Completion.IsCompleted)
+                {
+                    if (_isFinished) break;
+
+                    // Channel đã xong, thử lấy từ FuzzQueue
+                    if (_fuzzQueue != null && _fuzzQueue.TryDequeue(out var fallbackEntry) && fallbackEntry != null)
+                    {
+                        word = fallbackEntry.Payload;
+                        mutationGeneration = fallbackEntry.MutationGeneration;
+                        parentPayload = fallbackEntry.ParentPayload;
+                    }
+                    else
+                    {
+                        // Cả hai nguồn đều rỗng — kiểm tra có worker nào đang xử lý không
+                        Interlocked.Increment(ref _idleWorkers);
+                        
+                        if (Interlocked.Read(ref _idleWorkers) == Interlocked.Read(ref _activeWorkers) && (_fuzzQueue?.IsEmpty ?? true))
+                        {
+                            _isFinished = true;
+                            break; // Tất cả workers đều đang rảnh và queue rỗng → dừng
+                        }
+
+                        while (!_isFinished && (_fuzzQueue?.IsEmpty ?? true) && !ct.IsCancellationRequested)
+                        {
+                            await Task.Delay(50, ct);
+                        }
+
+                        Interlocked.Decrement(ref _idleWorkers);
+                        if (_isFinished) break;
+                        continue;
+                    }
+                }
+                else
+                {
+                    // Channel chưa complete nhưng tạm rỗng — chờ data mới
+                    try
+                    {
+                        await reader.WaitToReadAsync(ct);
+                    }
+                    catch (OperationCanceledException) { break; }
+                    continue;
+                }
+
+                if (word == null) continue;
+
+                // Xử lý __TIME__ placeholder
+                if (word.Contains("__TIME__"))
+                    word = word.Replace("__TIME__", "3");
+
+                try
+                {
+                    var request   = RequestBuilder.Build(_options, word);
+                    var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+                    using var response = await httpClient.SendAsync(request, ct);
+                    stopwatch.Stop();
+
+                    var body = await response.Content.ReadAsStringAsync(ct);
+
+                    var needsBody = _options.EnableDetection
+                                 || !string.IsNullOrEmpty(_options.MatchRegex)
+                                 || !string.IsNullOrEmpty(_options.FilterRegex)
+                                 || _options.Verbose;
+
+                    string? injectedBody = null;
+                    if (!string.IsNullOrEmpty(_options.Data) && _options.Data.Contains("FUZZ"))
+                        injectedBody = _options.Data.Replace("FUZZ", word);
+
+                    var result = new FuzzResult
+                    {
+                        Word              = word,
+                        Payload           = word,
+                        Url               = request.RequestUri!.ToString(),
+                        InjectedBody      = injectedBody,
+                        StatusCode        = (int)response.StatusCode,
+                        ContentLength     = body.Length,
+                        WordCount         = CountWords(body),
+                        LineCount         = CountLines(body),
+                        DurationMs        = stopwatch.ElapsedMilliseconds,
+                        ResponseBody      = needsBody ? body : null,
+                        Timestamp         = DateTime.UtcNow,
+                        MutationGeneration = mutationGeneration,
+                        ParentPayload     = parentPayload
+                    };
+
+                    Interlocked.Increment(ref _requestCount);
+
+                    // ── AFL: Behavioral Fingerprint ──────────────────────────────
+                    if (_fingerprint!.IsNewFingerprint(result.StatusCode, result.ContentLength, result.DurationMs))
+                    {
+                        Interlocked.Increment(ref _corpusCount);
+                        var fp = BehavioralFingerprint.ComputeFingerprint(
+                            result.StatusCode, result.ContentLength, result.DurationMs);
+
+                        if (!_options.Silent)
+                            Console.WriteLine($":: [NEW PATH] Fingerprint: {fp} | Payload: {word} | Gen: {mutationGeneration}");
+
+                        // Mutate seed và enqueue mutations
+                        var mutations = _mutator!.Mutate(word, 1, mutationGeneration);
+                        foreach (var mut in mutations)
+                        {
+                            if (_fuzzQueue!.Enqueue(mut))
+                                Interlocked.Increment(ref _mutationCount);
+                        }
+                    }
+
+                    // ── Filter + Detection (giữ nguyên logic cũ) ────────────────
+                    var filterEval = _filter.Evaluate(result);
+                    if (filterEval.IsBlockedByStrictRule)
+                    {
+                        if (!_options.Silent) _reporter.UpdateProgress(_requestCount, word);
+                        continue;
+                    }
+
+                    bool isHighSeverity = false;
+                    if (_options.EnableDetection && _detector?.IsReady == true)
+                    {
+                        if (result.ResponseBody == null) result.ResponseBody = body;
+
+                        bool hasAuth = (_options.Headers != null && _options.Headers.Any(h => h.Trim().StartsWith("Authorization", StringComparison.OrdinalIgnoreCase))) ||
+                                      !string.IsNullOrEmpty(_options.Cookie);
+
+                        var detection = _detector.Analyze(result, word, hasAuth, _options.Method);
+
+                        result.DetectionScore = detection.ConfidenceScore;
+                        result.DetectedVulnType = detection.PrimaryVulnType.ToString();
+                        result.DetectionSummary = detection.Summary;
+
+                        isHighSeverity = detection.Severity >= _options.DetectionBypassThreshold;
+                    }
+
+                    bool retainedByDetection = false;
+                    if (!filterEval.IsPassedBySoftRule && isHighSeverity)
+                    {
+                        retainedByDetection = true;
+                        result.IsRetainedByDetection = true;
+                        result.MatchReason = $"DetectionBypass (Score:{result.DetectionScore}, {result.DetectedVulnType})";
+                    }
+                    else if (filterEval.IsPassedBySoftRule)
+                    {
+                        result.MatchReason = filterEval.MatchReason switch
+                        {
+                            MatchReason.ByStatusCode => "Status",
+                            MatchReason.ByRegex => "Regex",
+                            MatchReason.BySize => "Size",
+                            MatchReason.ByWords => "Words",
+                            MatchReason.ByLines => "Lines",
+                            MatchReason.ByDetection => "Detection",
+                            _ => "None"
+                        };
+                    }
+
+                    if (filterEval.IsPassedBySoftRule || retainedByDetection)
+                    {
+                        if (_confirmer != null && result.DetectionScore >= 40)
+                        {
+                            var confirmation = await _confirmer.VerifyAsync(result, _options, httpClient);
+                            result.ConfirmationSummary = confirmation.Reason;
+
+                            if (confirmation.IsConfirmed)
+                            {
+                                Interlocked.Increment(ref _confirmedCount);
+                                result.DetectionSummary = "✅ [VERIFIED] " + result.DetectionSummary;
+                            }
+                            else
+                            {
+                                result.DetectionSummary = "⚠️ [UNVERIFIED] " + result.DetectionSummary;
+                            }
+                        }
+
+                        Interlocked.Increment(ref _matchCount);
+                        if (retainedByDetection) Interlocked.Increment(ref _bypassCount);
+                        _reporter.PrintResult(result);
+                    }
+                    else if (!_options.Silent)
+                    {
+                        _reporter.UpdateProgress(_requestCount, word);
+                    }
+                }
+                catch (HttpRequestException ex)
+                {
+                    if (_options.Verbose)
+                        _reporter.PrintError(word, ex.Message);
+                }
+            }
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _activeWorkers);
         }
     }
 

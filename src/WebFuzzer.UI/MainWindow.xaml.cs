@@ -53,6 +53,10 @@ namespace WebFuzzer.UI
         // ✅ MỚI: Status filter state
         private int _filterStatusGroup = 0; // 0=All, 1=2xx, 2=3xx, 3=4xx, 4=5xx
 
+        // ── Gray-Box AFL State ────────────────────────────────────────────────
+        private long _corpusCount;
+        private long _fingerprintCount;
+
         public MainWindow()
         {
             ApplicationThemeManager.Apply(ApplicationTheme.Dark);
@@ -247,13 +251,20 @@ namespace WebFuzzer.UI
 
             var detection = vm.Detection;
 
-            if (detection.Severity == Severity.Normal || detection.Signals.Count == 0)
+            // Hiển thị detail panel cho mọi row có signals HOẶC có response body
+            bool hasAnythingToShow = detection.Signals.Count > 0
+                || !string.IsNullOrEmpty(vm.ResponseBody)
+                || !string.IsNullOrEmpty(vm.InjectedBody);
+
+            if (!hasAnythingToShow)
             {
                 DetailPanel.Visibility = Visibility.Collapsed;
                 return;
             }
 
-            TxtDetailSummary.Text = detection.Summary;
+            TxtDetailSummary.Text = !string.IsNullOrEmpty(detection.Summary)
+                ? detection.Summary
+                : $"ℹ️ {vm.StatusCode} | Size={vm.ContentLength} | {vm.DurationMs}ms";
 
             if (vm.IsVerified)
             {
@@ -265,8 +276,35 @@ namespace WebFuzzer.UI
                 BrdVerified.Visibility = Visibility.Collapsed;
             }
 
-            SignalList.ItemsSource = detection.Signals;
+            // Signal list — hiển thị tất cả signals kể cả score thấp
+            SignalList.ItemsSource = detection.Signals.Count > 0
+                ? detection.Signals
+                : null;
+
+            // Injected body (POST data)
+            if (!string.IsNullOrEmpty(vm.InjectedBody))
+            {
+                BrdInjectedBody.Visibility = Visibility.Visible;
+                TxtInjectedBody.Text = vm.InjectedBody;
+            }
+            else
+            {
+                BrdInjectedBody.Visibility = Visibility.Collapsed;
+            }
+
+            // Match reason
+            if (!string.IsNullOrEmpty(vm.MatchReason))
+            {
+                BrdMatchReason.Visibility = Visibility.Visible;
+                TxtMatchReasonDetail.Text = vm.MatchReason;
+            }
+            else
+            {
+                BrdMatchReason.Visibility = Visibility.Collapsed;
+            }
+
             DetailPanel.Visibility = Visibility.Visible;
+
         }
 
         private void CloseDetailPanel_Click(object sender, RoutedEventArgs e)
@@ -336,6 +374,12 @@ namespace WebFuzzer.UI
                 sb.Append(" -v");
             if (ChkIdorMode.IsChecked == true)
                 sb.Append($" --idor {TxtIdorFrom.Text}-{TxtIdorTo.Text}");
+            if (ChkGrayBox.IsChecked == true)
+            {
+                sb.Append(" --graybox");
+                if (TxtMaxDepth.Text != "5")
+                    sb.Append($" --max-depth {TxtMaxDepth.Text}");
+            }
 
             TxtCommandPreview.Text = sb.ToString();
         }
@@ -359,6 +403,8 @@ namespace WebFuzzer.UI
             _vulnCount    = 0;
             _bypassCount  = 0;
             _cnt2xx = _cnt3xx = _cnt4xx = _cnt5xx = 0;
+            _corpusCount = 0;
+            _fingerprintCount = 0;
             TxtStatRequests.Text = "0";
             TxtStatMatches.Text  = "0";
             TxtStatVulns.Text    = "0";
@@ -369,6 +415,14 @@ namespace WebFuzzer.UI
             SetRunningState(true);
             AppendTerminal("[WebFuzzer] Starting fuzzer...");
             AppendTerminal($"[WebFuzzer] Target: {TxtUrl.Text}");
+
+            // Show/hide AFL stats UI
+            bool grayBoxEnabled = ChkGrayBox.IsChecked == true;
+            TxtAflStatsLabel.Visibility = grayBoxEnabled ? Visibility.Visible : Visibility.Collapsed;
+            TxtAflCorpusLabel.Visibility = grayBoxEnabled ? Visibility.Visible : Visibility.Collapsed;
+            TxtStatCorpus.Visibility = grayBoxEnabled ? Visibility.Visible : Visibility.Collapsed;
+            TxtAflFpLabel.Visibility = grayBoxEnabled ? Visibility.Visible : Visibility.Collapsed;
+            TxtStatFingerprints.Visibility = grayBoxEnabled ? Visibility.Visible : Visibility.Collapsed;
 
             if (idorTempFile != null)
                 AppendTerminal($"[IDOR] Mode: scanning IDs {TxtIdorFrom.Text} → {TxtIdorTo.Text}");
@@ -594,7 +648,26 @@ namespace WebFuzzer.UI
 
         private void OnTerminalLine(string line)
         {
-            Dispatcher.Invoke(() => AppendTerminal(line));
+            Dispatcher.Invoke(() =>
+            {
+                // Parse AFL stats from terminal lines
+                if (line.StartsWith("[NEW PATH]"))
+                {
+                    Interlocked.Increment(ref _fingerprintCount);
+                    Interlocked.Increment(ref _corpusCount); // MỚI: Corpus tăng ngay khi có NEW PATH
+                }
+                else if (line.StartsWith("[MUTATION]"))
+                    { } 
+                if (line.Contains("Corpus:"))
+                {
+                    // Parse corpus count from AFL stats line: [AFL] Fingerprints: N | Corpus: N | Mutations: N
+                    var corpusMatch = System.Text.RegularExpressions.Regex.Match(line, @"Corpus:\s*(\d+)");
+                    if (corpusMatch.Success && long.TryParse(corpusMatch.Groups[1].Value, out long c))
+                        Interlocked.Exchange(ref _corpusCount, c);
+                }
+
+                AppendTerminal(line);
+            });
         }
 
         // ── Stats Timer ──────────────────────────────────────────────────────
@@ -617,6 +690,11 @@ namespace WebFuzzer.UI
                 TxtStatMatches.Text  = _matchCount.ToString();
                 TxtStatVulns.Text    = _vulnCount.ToString();
                 TxtStatRps.Text      = rps.ToString();
+
+                // AFL stats
+                TxtStatCorpus.Text = _corpusCount.ToString();
+                TxtStatFingerprints.Text = _fingerprintCount.ToString();
+
                 if (_bypassCount > 0)
                     TxtStatVulns.ToolTip = $"{_vulnCount} vuln signals, {_bypassCount} retained by detection";
             });
@@ -671,6 +749,8 @@ namespace WebFuzzer.UI
                 Verbose         = ChkVerbose.IsChecked == true,
                 FollowRedirects = ChkFollowRedirects.IsChecked == true,
                 OutputFile      = string.IsNullOrWhiteSpace(TxtOutputFile.Text) ? null : TxtOutputFile.Text,
+                EnableGrayBox   = ChkGrayBox.IsChecked == true,
+                MaxMutationDepth = int.TryParse(TxtMaxDepth.Text, out var md) ? md : 5,
             };
         }
 
@@ -805,7 +885,10 @@ namespace WebFuzzer.UI
                 }
             });
 
-            var json = JsonSerializer.Serialize(export, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(export, new JsonSerializerOptions { 
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
             File.WriteAllText(dlg.FileName, json);
             AppendTerminal($"[WebFuzzer] Exported {_results.Count} results to {dlg.FileName}");
         }

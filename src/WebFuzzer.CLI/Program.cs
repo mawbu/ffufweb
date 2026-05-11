@@ -129,6 +129,16 @@ var detectConfirmOption = new Option<bool>(
     aliases: new[] { "--confirm" },
     description: "Enable Auto-Retest confirmation logic");
 
+// ── Gray-Box options ──────────────────────────────────────────────
+var grayboxOption = new Option<bool>(
+    aliases: new[] { "--graybox" },
+    description: "Enable Gray-Box AFL mode (coverage-guided mutation loop)");
+
+var maxDepthOption = new Option<int>(
+    aliases: new[] { "--max-depth" },
+    getDefaultValue: () => 5,
+    description: "Max mutation depth for Gray-Box mode");
+
 // ── Root command ─────────────────────────────────────────────────────────────
 var rootCommand = new RootCommand("WebFuzzer - Web fuzzing tool inspired by ffuf");
 
@@ -165,6 +175,9 @@ rootCommand.AddOption(autoCalibrateOption);
 rootCommand.AddOption(detectOption);
 rootCommand.AddOption(detectThresholdOption);
 rootCommand.AddOption(detectConfirmOption);
+// Gray-Box
+rootCommand.AddOption(grayboxOption);
+rootCommand.AddOption(maxDepthOption);
 
 rootCommand.SetHandler(async (context) =>
 {
@@ -221,6 +234,10 @@ rootCommand.SetHandler(async (context) =>
             _            => Severity.Likely  // default
         },
         EnableConfirmation = context.ParseResult.GetValueForOption(detectConfirmOption),
+
+        // Gray-Box
+        EnableGrayBox = context.ParseResult.GetValueForOption(grayboxOption),
+        MaxMutationDepth = context.ParseResult.GetValueForOption(maxDepthOption),
     };
 
     var engine = new FuzzEngine(options);

@@ -48,4 +48,20 @@ public class FuzzOptions
     public bool Verbose { get; set; } = false;
     public bool Silent { get; set; }
     public bool NoColor { get; set; }
+
+    // Gray-Box AFL Mode
+    /// <summary>
+    /// Bật chế độ Gray-Box Fuzzing (AFL-inspired evolutionary loop).
+    /// Khi false → chạy flow tuyến tính truyền thống (wordlist → request → filter).
+    /// Khi true → coverage-guided feedback loop với mutation.
+    /// </summary>
+    public bool EnableGrayBox { get; set; } = false;
+
+    /// <summary>
+    /// Giới hạn số vòng mutation tối đa (depth).
+    /// seed (gen 0) → mutation (gen 1) → mutation of mutation (gen 2) → ...
+    /// Khi MutationGeneration >= MaxMutationDepth → không enqueue lại nữa.
+    /// Ngăn corpus bùng nổ theo cấp số nhân.
+    /// </summary>
+    public int MaxMutationDepth { get; set; } = 5;
 }

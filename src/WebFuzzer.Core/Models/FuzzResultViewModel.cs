@@ -41,6 +41,21 @@ public sealed class FuzzResultViewModel : INotifyPropertyChanged
     public bool   IsVerified    => !string.IsNullOrEmpty(Result.ConfirmationSummary)
                                    && Result.ConfirmationSummary.Contains("[VERIFIED]");
 
+    // ── Gray-Box AFL Properties ─────────────────────────────────────────────
+    /// <summary>True nếu result này đến từ mutation (không phải seed gốc)</summary>
+    public bool IsFromMutation => Result.MutationGeneration > 0;
+
+    /// <summary>Thế hệ mutation: 0 = seed, 1+ = mutation</summary>
+    public int MutationGeneration => Result.MutationGeneration;
+
+    /// <summary>Label hiển thị trong DataGrid: "🧬 Gen 2" hoặc "Seed"</summary>
+    public string MutationLabel => MutationGeneration > 0
+        ? $"🧬 Gen {MutationGeneration}"
+        : "Seed";
+
+    /// <summary>Payload cha đã sinh ra result này</summary>
+    public string? ParentPayload => Result.ParentPayload;
+
     /// <summary>
     /// ✅ MỚI: Màu status code để bind style trong DataGrid
     /// </summary>

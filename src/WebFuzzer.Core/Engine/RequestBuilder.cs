@@ -26,10 +26,25 @@ public static class RequestBuilder
     private static string SafeUrlEncode(string word)
         => IsAlreadyPercentEncoded(word) ? word : Uri.EscapeDataString(word);
 
+    // Dùng static counter + random để đảm bảo __RAND__ unique ngay cả khi multithreaded
+    private static int _randCounter = 0;
+
+    /// <summary>
+    /// __RAND__ — placeholder sinh ra số ngẫu nhiên duy nhất mỗi request.
+    /// Dùng trong body template để giải quyết vấn đề "email đã tồn tại" khi fuzz Stored XSS:
+    ///   {"name": "FUZZ", "email": "test__RAND__@gmail.com", "password": "Test1234!"}
+    /// → Mỗi payload sẽ đăng ký với email khác nhau → tất cả đều được lưu vào DB.
+    /// </summary>
+    private static string GenerateRand()
+        => System.Threading.Interlocked.Increment(ref _randCounter).ToString() + 
+           Random.Shared.Next(100, 999).ToString();
+
     public static HttpRequestMessage Build(FuzzOptions options, string word)
     {
-        string safeUrl  = options.Url.Replace("__TIME__", "3");
-        string safeData = options.Data?.Replace("__TIME__", "3") ?? string.Empty;
+        // Sinh __RAND__ một lần duy nhất cho mỗi request (nhất quán trong URL + body + headers)
+        var rand = GenerateRand();
+        string safeUrl  = options.Url.Replace("__TIME__", "3").Replace("__RAND__", rand);
+        string safeData = (options.Data?.Replace("__TIME__", "3").Replace("__RAND__", rand)) ?? string.Empty;
 
         // Fix double encoding: chỉ encode khi FUZZ nằm trong URL VÀ payload chưa được encode sẵn.
         // Wordlist như sqli.txt chứa cả raw payload ("' OR 1=1") lẫn pre-encoded ("%27%20OR%201%3D1").
@@ -72,6 +87,7 @@ public static class RequestBuilder
         if (!string.IsNullOrEmpty(safeData))
         {
             var body = safeData.Replace("\r", "").Replace("\n", "").Replace("FUZZ", word);
+            // __RAND__ đã được replace ở trên (trong safeData) nên không cần replace lại
 
             // Bug fix #3: Dùng Content-Type từ header nếu có, fallback sang
             // application/json (phổ biến hơn application/x-www-form-urlencoded

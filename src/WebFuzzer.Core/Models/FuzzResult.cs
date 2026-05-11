@@ -28,5 +28,16 @@ public class FuzzResult
     public int DetectionScore { get; set; }
     public string? DetectedVulnType { get; set; }
     public string? DetectionSummary { get; set; }
+
+    // ── Gray-Box AFL Metadata ─────────────────────────────────────────────
+    /// <summary>
+    /// Thế hệ mutation: 0 = seed gốc từ wordlist, 1 = mutation trực tiếp, 2+ = mutation chồng.
+    /// </summary>
+    public int MutationGeneration { get; set; } = 0;
+
+    /// <summary>
+    /// Payload cha đã sinh ra result này qua mutation. null nếu là seed gốc.
+    /// </summary>
+    public string? ParentPayload { get; set; }
     public string? ConfirmationSummary { get; set; }
 }
